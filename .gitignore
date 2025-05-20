@@ -1,0 +1,20 @@
+# Prolog specific
+*.qlf
+*.o
+*.exe
+*.obj
+
+# Common editor/OS files
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# IDE specific (add more if you use others)
+.idea/
+.vscode/
+*.project
+*.cproject
+*.launch
+nbproject/

@@ -1,0 +1,327 @@
+<?xml version="1.0"?>
+<domain name="tourism" author="stefano" version="1">
+	<imports>
+		<import schema="general" />
+		<import schema="lam" /> <!-- distinguere lam da ch, tourism importa ch, lam e' specifico su catalogazione ecc. e importa ch -->
+	</imports>
+    <entities>
+		<entity name="Attraction">
+			<attribute name="date" mandatory="false" datatype="date"/>
+			<attribute name="technique" mandatory="false" datatype="string"/>
+			<attribute name="material" mandatory="false" datatype="string"/>
+		</entity>
+		<entity name="MeansOfTransportation">
+			<!-- Teodors start: -->
+			<attribute name="availability" mandatory="false" datatype="boolean" />
+			<attribute name="consumption" mandatory="false" datatype="string" />
+			<attribute name="typeOfFuel" mandatory="false" datatype="string" />
+			<!-- Teodors stop: -->
+			<entity name="AirTransportation">
+				<attribute name="transportType" mandatory="false" datatype="select">
+					<value name="Airplane"/>
+					<value name="AirShip"/>
+					<value name="Helicopter"/>
+					<value name="HotAirBalloon"/>
+				</attribute>
+			</entity>
+			<entity name="RailTransportation">
+				<attribute name="transportType" mandatory="false" datatype="select">
+					<value name="Subway" />
+					<value name="Train" />
+					<!-- Teodors start: -->
+					<value name="Intercity" />
+					<value name="Transit" />
+					<value name="HighSpeedRail" />
+					<value name="Funicular" />
+					<!-- Teodors stop: -->
+				</attribute>
+			</entity>
+			<entity name="RoadTransportation">
+				<entity name="Bike" />
+				<entity name="Bus" />
+				<entity name="Taxi" />
+				<entity name="Car">
+					<attribute name="type" mandatory="false" datatype="select">
+						<!-- Teodors start: -->
+						<value name="Sedan" />
+						<value name="Coupe" />
+						<value name="Hatchback" />
+						<value name="Wagon" />
+						<value name="Crossover" />
+						<value name="Minivan" />
+						<value name="SUV" />
+						<value name="Cabriolet" />
+						<value name="Micro" />
+					</attribute>
+				</entity>
+				<entity name="Motorcycle" />
+				<entity name="Scooter" />
+				<entity name="Skateboard" />
+				<entity name="Van" />
+				<!-- Teodors stop: -->
+			</entity>
+			<entity name="WaterTransportation">
+				<attribute name="transportType" mandatory="false" datatype="select">
+					<value name="Boat" />
+					<value name="Ferry" />
+					<value name="Motorboat" />
+					<value name="Ship" />
+					<!-- Teodors start: -->
+					<value name="Cruisship" />
+					<value name="OceanLiner" />
+					<!-- Teodors stop: -->
+				</attribute>
+			</entity>
+		</entity>
+        <entity name="PointOfInterest">
+			<attribute name="place" mandatory="false" display="true" datatype="entity" target="Place" />
+			<attribute name="address" mandatory="false" datatype="string"/>
+			<attribute name="phone" mandatory="false" datatype="string"/>
+			<attribute name="estimatedCost" mandatory="false" datatype="real"/>
+			<entity name="Service">
+				<entity name="Bank"/>
+				<entity name="EatingDrinking">
+					<attribute name="timeLimit" mandatory="false" datatype="integer"/>
+					<attribute name="requiresTicket" mandatory="false" datatype="boolean"/>
+					<entity name="Bar" />
+					<entity name="Pub" />
+					<!-- Teodors start: -->
+					<entity name="Bistro" />
+					<entity name="Cafe" />
+					<entity name="Brasserie" />
+					<entity name="Canteen" />
+					<entity name="SnackBar" />
+					<entity name="Grillroom" />
+					<entity name="Stakehouse" />
+					<entity name="Pizzeria" />
+					<entity name="Tavern" />
+					<entity name="TeaHouse" />
+					<!-- Teodors stop: -->
+					<entity name="Market">
+						<attribute name="type" mandatory="false" datatype="select">
+							<value name="Bakery" />
+							<value name="Butcher" />
+							<value name="Dairy" />
+							<value name="Fish" />
+							<value name="Grocery" />
+							<value name="Minimarket" />
+							<value name="Supermarket" />
+							<!-- Teodors start: -->
+							<value name="Confectionery" />
+							<value name="Mall" />
+							<!-- Teodors stop: -->
+						</attribute>
+					</entity>
+					<entity name="Restaurant">
+						<attribute name="type" mandatory="false" datatype="string"/>
+						<attribute name="foodType" mandatory="false" datatype="select">
+							<value name="FastFood"/>
+							<value name="Fish"/>
+							<value name="Generic"/>
+							<value name="Meat"/>
+						</attribute>
+					</entity>
+				</entity>
+				<entity name="GasStation"/>
+				<entity name="Hotel">
+					<attribute name="stars" mandatory="false" datatype="integer" />
+				</entity>
+				<!-- Teodors start: -->
+				<entity name="HotelService">
+					<entity name="BikeTour" />
+					<entity name="CookingClass" />
+					<entity name="CulturalTour" />
+					<entity name="DiscoParty" />
+					<entity name="FacialTreatments" />
+					<entity name="HappyHour" />
+					<entity name="Yoga" />
+					<entity name="Pilates" />
+					<entity name="WalkingTour" />
+					<entity name="Aerobics" />
+					<entity name="AquaticExercise" />
+				</entity>
+				<entity name="BeautyService">
+					<entity name="BarberService" />
+					<entity name="Bath">
+						<entity name="Jacuzzi" />
+						<entity name="Tub" />
+					</entity>
+					<entity name="Massage">
+						<entity name="Eastern">
+							<entity name="Thai" />
+							<entity name="Turkish" />
+							<entity name="Shiatsu" />
+						</entity>
+						<entity name="Western">
+							<entity name="Swedish" />
+							<entity name="Detox" />
+							<entity name="Collagen" />
+							<entity name="Firming" />
+						</entity>
+					</entity>
+					<entity name="Pedicure" />
+					<entity name="Sunbath" />
+					<entity name="Shower">
+						<entity name="Swiss" />
+						<entity name="Vichy" />
+						<entity name="Steam" />
+						<entity name="Roman" />
+						<entity name="Air" />
+					</entity>
+					<entity name="Spa">
+						<entity name="Day" />
+						<entity name="Medical" />
+						<entity name="Resort" />
+					</entity>
+					<entity name="Therapy">
+						<entity name="Aroma" />
+					</entity>
+				</entity>
+				<!-- Teodors stop: -->
+				<entity name="HealthService">
+					<entity name="Hospital"/>
+					<entity name="Pharmacy"/>
+				</entity>
+				<entity name="PostOffice"/>
+				<entity name="PublicService">
+					<entity name="AdministrationService">
+						<attribute name="type" mandatory="false" datatype="select">
+							<value name="CityHall"/>
+							<value name="PortCaptaincy"/>
+							<value name="Prefecture"/>
+						</attribute>
+					</entity>
+					<entity name="LawEnforcement">
+						<attribute name="type" mandatory="false" datatype="select">
+							<value name="CarabinieriStation"/>
+							<value name="FinancePoliceStation"/>
+							<value name="FireStation"/>
+							<value name="PoliceStation"/>
+						</attribute>
+					</entity>
+				</entity>
+				<entity name="ReligiousService">
+					<entity name="Buddhist"/>
+					<entity name="Catholic"/>
+					<entity name="Jewish"/>
+					<entity name="Muslim"/>
+					<entity name="Orthodox"/>
+				</entity>
+				<entity name="Shop">
+					<attribute name="type" mandatory="false" datatype="select">
+						<value name="Bags"/>
+						<value name="Clothes"/>
+						<value name="Crafts"/>
+						<value name="Gifts"/>
+						<value name="Jewelry"/>
+						<value name="MakeUp"/>
+						<value name="Technology"/>
+					</attribute>
+				</entity>
+				<entity name="Station">
+					<attribute name="kind" mandatory="true" datatype="select">
+						<value name="Airport"/>
+						<value name="Bus"/>
+						<value name="Car"/>
+						<value name="Helicopter"/>
+						<value name="Port"/>
+						<value name="Train"/>
+					</attribute>
+				</entity>
+				<entity name="Tobacconist"/>
+				<entity name="TourismAgency"/>
+			</entity>
+			<entity name="PlaceToVisit">
+				<attribute name="timeLimit" mandatory="false" datatype="integer"/>
+				<attribute name="requiresTicket" mandatory="false" datatype="boolean"/>
+				<entity name="Archive" />
+				<entity name="Architecture" />
+				<entity name="Church" />
+				<entity name="Library" />
+				<entity name="Monument" />
+				<entity name="Museum" />
+				<entity name="Palace" />
+				<entity name="PanoramicView" />
+				<entity name="Park" />
+				<entity name="Ruin" />
+				<entity name="Theater" />
+				<!-- Teodors start: -->
+				<entity name="AmusementPark" />
+				<entity name="ArchaeologicalSite" />
+				<entity name="Cathedral" />
+				<entity name="Citadel" />
+				<entity name="Fort" />
+				<entity name="Fortress" />
+				<entity name="Fountain" />
+				<entity name="Landmark" />
+				<entity name="Monastery" />
+				<entity name="Mosque" />
+				<entity name="Pagoda" />
+				<entity name="Plaza" />
+				<entity name="Shrine" />
+				<entity name="Stadium" />
+				<entity name="Temple" />
+				<entity name="Tower" />
+				<entity name="Wat" />
+				<!-- Teodors stop: -->
+			</entity>
+        </entity>
+        <entity name="Visit">
+			<attribute name="startDate" mandatory="true" datatype="date"/>
+			<attribute name="endDate" mandatory="false" datatype="date"/>
+			<attribute name="budget" mandatory="false" datatype="real"/>
+        </entity>
+    </entities>
+    <relationships>
+		<relationship name="belongsTo" inverse="includes">
+			<reference subject="Attraction" object="Collection"/>
+			<reference subject="PointOfInterest" object="Category"/>
+			<reference subject="PointOfInterest" object="Collection"/>
+		</relationship>
+		<relationship name="developed" inverse="developedBy">
+			<reference subject="Person" object="Attraction"/>
+			<attribute name="role" mandatory="false" datatype="string"/>
+			<attribute name="order" mandatory="false" datatype="integer"/>
+		</relationship>
+		<relationship name="isA" inverse="kindOf">
+			<reference subject="Artifact" object="Attraction"/>
+			<reference subject="Place" object="PointOfInterest"/>
+		</relationship>
+        <relationship name="makes" inverse="madeBy">
+			<reference subject="Collection" object="Visit"/>
+			<reference subject="Collection" object="Event"/>
+			<reference subject="Person" object="Visit"/>
+			<attribute name="role" mandatory="true" datatype="string"/>
+		</relationship>
+		<relationship name="owned" inverse="ownedBy">
+			<reference subject="Organization" object="Attraction"/>
+			<reference subject="Person" object="Attraction"/>
+			<attribute name="quantity" mandatory="false" datatype="integer"/>
+			<attribute name="startDate" mandatory="false" datatype="date"/>
+			<attribute name="endDate" mandatory="false" datatype="date"/>
+			<attribute name="public" mandatory="false" datatype="boolean"/>
+		</relationship>
+        <relationship name="relevantFor" inverse="pertains">
+			<reference subject="Attraction" object="Category"/>
+			<reference subject="Category" object="Attraction"/>
+			<reference subject="Category" object="Collection"/>
+			<reference subject="Category" object="PointOfInterest"/>
+			<reference subject="Person" object="PointOfInterest"/>
+			<reference subject="PointOfInterest" object="Category"/>
+			<attribute name="role" mandatory="true" datatype="string"/>
+		</relationship>
+		<relationship name="wasIn" inverse="hosted">
+			<reference subject="Attraction" object="Place"/>
+			<reference subject="Attraction" object="PointOfInterest"/>
+			<reference subject="Collection" object="PointOfInterest"/>
+			<reference subject="Person" object="PointOfInterest"/>
+			<reference subject="PointOfInterest" object="Place"/>
+			<reference subject="Visit" object="Event"/>
+			<reference subject="Visit" object="Place"/>
+			<attribute name="reason" mandatory="false" datatype="string"/>
+			<attribute name="address" mandatory="false" datatype="string"/>
+			<attribute name="startDate" mandatory="false" datatype="date"/>
+			<attribute name="endDate" mandatory="false" datatype="date"/>
+		</relationship>
+    </relationships>
+</domain>

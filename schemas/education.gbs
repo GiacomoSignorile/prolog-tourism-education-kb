@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<domain name="education" version="0.1">
+	<imports>
+		<import schema="lam"/>
+		<import schema="lom"/>
+		<import schema="intelleo"/>
+		<import schema="oerschema"/>
+	</imports>
+	<entities>
+		<entity name="AccomplishmentEvidence"> <!-- sarebbe Award? o Achievement -->
+			<attribute datatype="integer" mandatory="false" name="degree"/> <!-- usare tipi specifici - 0 = negazione? -->
+			<!-- o attribute datatype="select" mandatory="false" name="type" -->
+			<entity name="Badge"/>
+			<entity name="Certificate"/>
+			<entity name="Diploma"/>
+			<entity name="GradeOrMark"/>
+			<entity name="License"/>
+			<entity name="MicroBadge"/>
+			<entity name="TestScore"/>
+		</entity>
+		<entity name="AssessmentTool">
+			<attribute datatype="string" mandatory="false" name="version"/>
+			<attribute datatype="entity" mandatory="true" name="language" target="Language"/>
+			<entity name="Answer"/>
+			<entity name="Question"/>
+			<entity name="Questionnaire"/>
+		</entity>
+		<entity name="Container"> <!-- EducationalContainer? -->
+			<attribute datatype="entity" mandatory="true" name="language" target="Language"/>
+			<entity name="Assessment"/>
+			<entity name="Class"/>
+			<entity name="CourseOfStudy"/>
+			<entity name="Lecture"/>
+			<entity name="Lesson"/>
+			<entity name="Module"/>
+		</entity>
+		<entity name="Environment">
+			<attribute datatype="text" mandatory="false" name="description"/>
+			<attribute datatype="select" mandatory="false" name="type"> <!-- o taxonomy? -->
+				<value name="DigitalEnvironment"/>
+				<value name="EmotionalEnvironment"/> <!-- Mental ? sono cose diverse? -->
+				<value name="PhysicalEnvironment"/>
+				<value name="SocialEnvironment"/>
+			</attribute>
+		</entity>
+	</entities>
+	<relationships>
+		<relationship inverse="answeredBy" name="answers">
+			<reference object="Question" subject="Answer"/>
+			<attribute datatype="boolean" mandatory="false" name="correct"/>
+			<!-- attribute name="points" mandatory="false" datatype="integer"/ dipende dal test -->
+		</relationship>
+		<relationship inverse="assessedBy" name="assesses">
+			<reference object="Category" subject="AssessmentTool"/> <!-- sia Questionnaire che Question -->
+			<reference object="Container" subject="AssessmentTool"/>
+			<reference object="ContentDescription" subject="AssessmentTool"/>
+			<reference object="Document" subject="AssessmentTool"/>
+			<attribute datatype="string" mandatory="true" name="scale"/> <!-- select? entity? -->
+		</relationship>
+		<relationship inverse="Includes" name="belongsTo">
+			<reference object="Questionnaire" subject="Question"/>
+			<attribute datatype="integer" mandatory="true" name="position"/>
+			<attribute datatype="select" mandatory="true" name="type">
+				<value name="Binary"/>
+				<value name="Closed"/>
+				<value name="Open"/>
+			</attribute>
+		</relationship>
+		<relationship inverse="developedBy" name="developed">
+			<reference object="AssessmentTool" subject="User"/>
+			<reference object="Container" subject="User"/>
+			<attribute datatype="select" mandatory="true" name="role">
+				<value name="Administrator"/>
+				<value name="Counselor"/>
+				<value description="person who authors, composeses, builds, etc. learning objects or environments" name="Creator"/>
+				<value description="person who creates or collaborates on creating learning objects and/or environments" name="InstructionalDesigner"/>
+				<value name="Manager"/>
+				<value name="Teacher"/>
+			</attribute>
+			<attribute datatype="date" mandatory="false" name="startDate"/>
+			<attribute datatype="date" mandatory="false" name="endDate"/>
+		</relationship>
+		<relationship inverse="describedBy" name="describes">
+			<reference object="Environment" subject="ContentDescription"/>
+			<reference object="User" subject="Category"/>
+			<reference object="User" subject="Environment"/>
+			<reference object="AccomplishmentEvidence" subject="User"/>
+			<reference object="ContentDescriptor" subject="User"/>
+			<attribute datatype="select" mandatory="true" name="type">
+				<value name="Goal"/>
+				<value name="Preference"/>
+				<value name="Skill"/>
+			</attribute>
+			<attribute datatype="integer" mandatory="false" name="degree"/> <!-- usare tipi specifici - 0 = negazione? -->
+		</relationship>
+		<relationship inverse="evaluatedBy" name="evaluated">
+			<reference object="AssessmentTool" subject="User"/>
+			<reference object="User" subject="User"/>
+			<attribute datatype="real" mandatory="true" name="value"/>
+			<attribute datatype="select" mandatory="true" name="type">
+					<value name="Opinion"/>
+			</attribute>
+			<attribute datatype="date" mandatory="false" name="evaluationDate"/>
+		</relationship>
+		<relationship inverse="evolvedBy" name="evolves">
+			<reference object="AssessmentTool" subject="AssessmentTool"/>
+			<reference object="Container" subject="Container"/>
+		</relationship>
+		<relationship inverse="hasInstance" name="instanceOf">
+			<reference object="Container" subject="Event"/>
+			<reference object="AssessmentTool" subject="Item"/>
+		</relationship>
+		<relationship inverse="interactedWith" name="interactedWith">
+			<reference object="AssessmentTool" subject="User"/>
+			<reference object="Document" subject="User"/>
+			<reference object="User" subject="User"/>
+			<attribute datatype="string" mandatory="false" name="role"/>
+			<attribute datatype="date" mandatory="false" name="startDate"/>
+			<attribute datatype="date" mandatory="false" name="endDate"/>
+		</relationship>
+		<relationship inverse="involved" name="involvedIn"> <!-- wasIn? -->
+			<reference object="Event" subject="User"/> <!-- Event istanza di Container -->
+			<attribute datatype="select" mandatory="true" name="role">
+				<value description="person who manages or coordinates learning environments" name="Administrator"/>
+				<value description="person who advises learners about personal relationships and/or learning goals and/or experiences" name="Counselor"/>
+				<!-- value name="Creator"/ -->
+				<value description="adult person authorized to act on behalf of young or handicapped person" name="Custodian"/>
+				<value description="human with role of achieving a goal" name="Learner"/>
+				<value name="Manager"/>
+				<value name="Speaker"/>
+				<value description="person who interacts with learner(s) to facilitate mastery of learning objects" name="Teacher"/>
+				<value name="Tutor"/>
+			</attribute>
+			<attribute datatype="date" mandatory="false" name="startDate"/>
+			<attribute datatype="date" mandatory="false" name="endDate"/>
+		</relationship>
+		<relationship inverse="hasSubclass" name="isA">
+			<reference object="AccomplishmentEvidence" subject="AccomplishmentEvidence"/>
+		</relationship>
+		<relationship inverse="issuedBy" name="issued">
+			<reference object="AccomplishmentEvidence" subject="Organization"/>
+			<reference object="Container" subject="Organization"/>
+			<attribute datatype="date" mandatory="false" name="startDate"/>
+			<attribute datatype="date" mandatory="false" name="endDate"/>
+		</relationship>
+		<relationship inverse="mayBeReplacedBy" name="mayReplace">
+			<reference object="AccomplishmentEvidence" subject="AccomplishmentEvidence"/>
+			<reference object="AssessmentTool" subject="AssessmentTool"/>
+			<reference object="Container" subject="Container"/>
+			<reference object="Document" subject="Document"/>
+			<!-- reference subject="LearningObject" object="LearningObject"/ -->
+		</relationship>
+		<relationship inverse="ownedBy" name="owned"> <!-- achieved? attributi simili a "describes" -->
+			<reference object="AccomplishmentEvidence" subject="User"/>
+			<attribute datatype="integer" mandatory="false" name="mark"/> <!-- usare tipi specifici -->
+			<attribute datatype="date" mandatory="false" name="startDate"/>
+			<attribute datatype="date" mandatory="false" name="endDate"/>
+			<attribute datatype="boolean" mandatory="false" name="public"/>
+		</relationship>
+		<relationship inverse="hasPart" name="partOf">
+			<reference object="Container" subject="Container"/>
+			<attribute datatype="date" mandatory="true" name="startDate"/>
+			<attribute datatype="date" mandatory="false" name="endDate"/>
+		</relationship>
+		<relationship inverse="recognizedBy" name="recognizes">
+			<reference object="AccomplishmentEvidence" subject="Organization"/>
+		</relationship>
+		<relationship inverse="requiredBy" name="requires">
+			<reference object="Container" subject="AssessmentTool"/>
+			<reference object="Container" subject="Container"/>
+		</relationship>
+	</relationships>
+</domain>
