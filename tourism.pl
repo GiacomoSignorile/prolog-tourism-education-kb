@@ -4,13 +4,14 @@
 :- discontiguous entity/3.
 :- discontiguous rel/4.
 :- discontiguous place_info/5.
-:- discontiguous person_info/4.
+:- discontiguous person_info/2. % Corrected arity from your example (was 4, but data used 2 + ID)
 :- discontiguous category_info/2.
 :- discontiguous collection_info/2.
 :- discontiguous event_info/3.
 
-% --- START OF SCHEMA (Copied from your input) ---
-% ENTITIES
+% --- SCHEMA DEFINITIONS ---
+
+% -- Entities Hierarchy --
 subclass_of('AirTransportation', 'MeansOfTransportation').
 subclass_of('RailTransportation', 'MeansOfTransportation').
 subclass_of('RoadTransportation', 'MeansOfTransportation').
@@ -129,28 +130,177 @@ subclass_of('Stadium', 'PlaceToVisit').
 subclass_of('Temple', 'PlaceToVisit').
 subclass_of('Tower', 'PlaceToVisit').
 subclass_of('Wat', 'PlaceToVisit').
-subclass_of('Attraction', 'Entity').
-subclass_of('MeansOfTransportation', 'Entity').
-subclass_of('PointOfInterest', 'Entity').
-subclass_of('Visit', 'Entity').
 
-% Entities schema (simplified for brevity, not strictly needed for rules if we use entity/3 facts)
-% ... (Original entity schema definitions like 'Attraction'([date, technique, material]) are good for validation but not directly used by the rules below)
+% Top-level entities (assuming 'Entity' is the implicit root from DomainData)
+% These are implicit if not specified, but good to have if your tool uses them.
+% If 'Entity' is a defined type they inherit from, that's fine.
+% For now, the rules work by checking subtypes of PointOfInterest, MeansOfTransportation etc.
+% If you have a top-level 'Entity', you can add:
+% subclass_of('Attraction', 'Entity').
+% subclass_of('MeansOfTransportation', 'Entity').
+% subclass_of('PointOfInterest', 'Entity').
+% subclass_of('Visit', 'Entity').
+% ... and for imported entities like Person, Place etc. if they are also direct subs of 'Entity'.
 
-% RELATIONSHIPS
+% -- Entity Attribute Schemas --
+% These facts define the *direct* attributes of each entity type.
+% The gather_attributes/2 rule will collect these and inherited ones.
+'Attraction'([date, technique, material]).
+'MeansOfTransportation'([availability, consumption, typeOfFuel]).
+'AirTransportation'([transportType]).
+'RailTransportation'([transportType]).
+'RoadTransportation'([]).
+'Bike'([]).
+'Bus'([]).
+'Taxi'([]).
+'Car'([type]).
+'Motorcycle'([]).
+'Scooter'([]).
+'Skateboard'([]).
+'Van'([]).
+'WaterTransportation'([transportType]).
+'PointOfInterest'([place, address, phone, estimatedCost]). % Note: 'name' is not listed here, but used in facts. Add if it's a formal attribute.
+'Service'([]).
+'Bank'([]).
+'EatingDrinking'([timeLimit, requiresTicket]).
+'Bar'([]).
+'Pub'([]).
+'Bistro'([]).
+'Cafe'([]).
+'Brasserie'([]).
+'Canteen'([]).
+'SnackBar'([]).
+'Grillroom'([]).
+'Stakehouse'([]).
+'Pizzeria'([]).
+'Tavern'([]).
+'TeaHouse'([]).
+'Market'([type]).
+'Restaurant'([type, foodType]).
+'GasStation'([]).
+'Hotel'([stars]).
+'HotelService'([]).
+'BikeTour'([]).
+'CookingClass'([]).
+'CulturalTour'([]).
+'DiscoParty'([]).
+'FacialTreatments'([]).
+'HappyHour'([]).
+'Yoga'([]).
+'Pilates'([]).
+'WalkingTour'([]).
+'Aerobics'([]).
+'AquaticExercise'([]).
+'BeautyService'([]).
+'BarberService'([]).
+'Bath'([]).
+'Jacuzzi'([]).
+'Tub'([]).
+'Massage'([]).
+'Eastern'([]).
+'Thai'([]).
+'Turkish'([]).
+'Shiatsu'([]).
+'Western'([]).
+'Swedish'([]).
+'Detox'([]).
+'Collagen'([]).
+'Firming'([]).
+'Pedicure'([]).
+'Sunbath'([]).
+'Shower'([]).
+'Swiss'([]).
+'Vichy'([]).
+'Steam'([]).
+'Roman'([]).
+'Air'([]).
+'Spa'([]).
+'Day'([]).
+'Medical'([]).
+'Resort'([]).
+'Therapy'([]).
+'Aroma'([]).
+'HealthService'([]).
+'Hospital'([]).
+'Pharmacy'([]).
+'PostOffice'([]).
+'PublicService'([]).
+'AdministrationService'([type]).
+'LawEnforcement'([type]).
+'ReligiousService'([]).
+'Buddhist'([]).
+'Catholic'([]).
+'Jewish'([]).
+'Muslim'([]).
+'Orthodox'([]).
+'Shop'([type]).
+'Station'([kind]).
+'Tobacconist'([]).
+'TourismAgency'([]).
+'PlaceToVisit'([timeLimit, requiresTicket]). % Note: 'name' is not listed here.
+'Archive'([]).
+'Architecture'([]).
+'Church'([]).
+'Library'([]).
+'Monument'([]).
+'Museum'([]). % Note: 'name' is not listed here.
+'Palace'([]).
+'PanoramicView'([]).
+'Park'([]).
+'Ruin'([]).
+'Theater'([]).
+'AmusementPark'([]).
+'ArchaeologicalSite'([]).
+'Cathedral'([]).
+'Citadel'([]).
+'Fort'([]).
+'Fortress'([]).
+'Fountain'([]).
+'Landmark'([]).
+'Monastery'([]).
+'Mosque'([]).
+'Pagoda'([]).
+'Plaza'([]).
+'Shrine'([]).
+'Stadium'([]).
+'Temple'([]).
+'Tower'([]).
+'Wat'([]).
+'Visit'([startDate, endDate, budget]).
+% For imported entities like Person, Place, Category, Collection, Event,
+% if they have attributes defined in *this* schema, add them here.
+% e.g., 'Person'([name, birthDate]). 'Place'([name, latitude, longitude]).
+
+% -- Relationship Inverse Definitions --
 inverse_of('includes', 'belongsTo').
 inverse_of('developedBy', 'developed').
-inverse_of('kindOf', 'isA').
+inverse_of('kindOf', 'isA'). % Or hasSubclass/isA depending on original meaning
 inverse_of('madeBy', 'makes').
 inverse_of('ownedBy', 'owned').
 inverse_of('pertains', 'relevantFor').
 inverse_of('hosted', 'wasIn').
 
-% GENERIC RULES (Copied from your input)
+% -- Relationship Signature Schemas --
+% These define Subject-Object pairings and direct attributes for each relationship.
+'belongsTo'(['Attraction'-'Collection', 'PointOfInterest'-'Category', 'PointOfInterest'-'Collection'], []).
+'developed'(['Person'-'Attraction'], [role, order]).
+'isA'(['Artifact'-'Attraction', 'Place'-'PointOfInterest'], []). % Subject-Object from GBS: Artifact isA Attraction, Place isA PointOfInterest
+'makes'(['Collection'-'Visit', 'Collection'-'Event', 'Person'-'Visit'], [role]).
+'owned'(['Organization'-'Attraction', 'Person'-'Attraction'], [quantity, startDate, endDate, public]).
+'relevantFor'(['Attraction'-'Category', 'Category'-'Attraction', 'Collection'-'Category', 'PointOfInterest'-'Category', 'Person'-'PointOfInterest', 'Category'-'PointOfInterest'], [role]).
+'wasIn'(['Attraction'-'Place', 'Attraction'-'PointOfInterest', 'Collection'-'PointOfInterest', 'Person'-'PointOfInterest', 'PointOfInterest'-'Place', 'Visit'-'Event', 'Visit'-'Place'], [reason, address, startDate, endDate]).
+
+
+% --- GENERIC SCHEMA UTILITY RULES ---
+
+% is_subclass(?Subclass, ?Superclass)
+is_subclass(Class, Class) :- !. % Reflexivity: A class is a subclass of itself.
 is_subclass(Subclass, Superclass) :-
   is_subclass_normal(Subclass, Superclass).
 is_subclass(Subclass, Superclass) :-
-  \+ is_subclass_normal(Subclass, _),
+  \+ is_subclass_normal(Subclass, _), % Ensure it's not a normal subclass of anything (or specific Superclass failed)
+  current_predicate(inverse_of/2),    % Only if inverse relationships are defined
+  (inverse_of(Subclass, _) ; inverse_of(_, Subclass)), % Check if Subclass is part of an inverse_of pair
   is_subclass_inverse(Subclass, Superclass).
 
 is_subclass_normal(Subclass, Superclass) :-
@@ -160,81 +310,144 @@ is_subclass_normal(Subclass, Superclass) :-
   is_subclass_normal(Middleclass, Superclass).
 
 is_subclass_inverse(SubclassInverse, SuperclassInverse) :-
-  invert_relationship(SubclassInverse, SubclassClause),
-  SubclassClause =.. [SubclassName|_],
-  is_subclass_normal(SubclassName, SuperclassName),
-  invert_relationship(SuperclassName, SuperclassClauseInverse),
-  SuperclassClauseInverse =.. [SuperclassInverse|_].
+  invert_relationship(SubclassInverse, SubclassClause), % Get the schema of the non-inverted counterpart
+  SubclassClause =.. [SubclassName|_],                 % Extract its name
+  is_subclass_normal(SubclassName, SuperclassName),    % Check hierarchy of non-inverted names
+  invert_relationship(SuperclassName, SuperclassClauseInverse), % Get schema of the Superclass's inverse
+  SuperclassClauseInverse =.. [SuperclassInverse|_].        % Extract its name
 
-% (Keeping invert_relationship and gather_attributes/references as they were,
-%  though they are more for schema introspection than direct domain reasoning)
+% invert_relationship(+RelationshipName, -InvertedRelationshipClause)
+% Returns the schema clause (Name, Refs, Attrs) of the inverse.
 invert_relationship(RelationshipName, InvertedRelationshipClause) :-
-  schema_relationship(RelationshipName, SubjObjList, AttributeList), % Use a helper to get schema
-  inverse_of(InvertedRelationshipName, RelationshipName),
+  inverse_of(InvertedRelationshipName, RelationshipName), % RelationshipName is the "normal" one
+  schema_relationship_definition(RelationshipName, SubjObjList, AttributeList), % Get its definition
   !,
   invert_subj_obj(SubjObjList, InvertedSubjObjList),
   InvertedRelationshipClause =.. [InvertedRelationshipName, InvertedSubjObjList, AttributeList].
 invert_relationship(InvertedRelationshipName, RelationshipClause) :-
-  schema_relationship(RelationshipName, SubjObjList, AttributeList), % Use a helper
-  inverse_of(InvertedRelationshipName, RelationshipName),
+  inverse_of(InvertedRelationshipName, RelationshipName), % InvertedRelationshipName is the one we are inverting
+  schema_relationship_definition(RelationshipName, SubjObjList, AttributeList), % Get definition of its "normal" base
   !,
   RelationshipClause =.. [RelationshipName, SubjObjList, AttributeList].
-invert_relationship(RelationshipName, Relationship) :-
+invert_relationship(RelationshipName, RelationshipClause) :- % No inverse defined
   \+ inverse_of(_, RelationshipName),
   \+ inverse_of(RelationshipName, _),
-  schema_relationship(RelationshipName, SubjObjList, AttributeList), % Use a helper
-  Relationship =.. [RelationshipName, SubjObjList, AttributeList].
+  schema_relationship_definition(RelationshipName, SubjObjList, AttributeList),
+  RelationshipClause =.. [RelationshipName, SubjObjList, AttributeList].
 
-% Helper to get relationship schema (needed for invert_relationship to work with the provided structure)
-% This matches the structure from the original schema file like: 'belongsTo'(['Attraction'-'Collection', ...], []).
-schema_relationship(RelName, SubjObjList, AttrList) :-
+% schema_relationship_definition(RelName, SubjObjList, AttrList)
+% Helper to get the original schema definition of a relationship.
+schema_relationship_definition(RelName, SubjObjList, AttrList) :-
     Clause =.. [RelName, SubjObjList, AttrList],
-    current_predicate(RelName/2), % Check if the schema fact exists
+    current_predicate(RelName/2), % Check if the schema fact (e.g., 'belongsTo'/2) exists
     call(Clause).
-
-'belongsTo'(['Attraction'-'Collection', 'PointOfInterest'-'Category', 'PointOfInterest'-'Collection'], []).
-'developed'(['Person'-'Attraction'], [ruolo, order]).
-'isA'(['Artifact'-'Attraction', 'Place'-'PointOfInterest'], []).
-'makes'(['Collection'-'Visit', 'Collection'-'Event', 'Person'-'Visit'], [role]).
-'owned'(['Organization'-'Attraction', 'Person'-'Attraction'], [quantity, startDate, endDate, public]).
-'relevantFor'(['Attraction'-'Category', 'Category'-'Attraction', 'Collection'-'Category', 'PointOfInterest'-'Category', 'Person'-'PointOfInterest', 'Category'-'PointOfInterest'], [role]).
-'wasIn'(['Attraction'-'Place', 'Attraction'-'PointOfInterest', 'Collection'-'PointOfInterest', 'Person'-'PointOfInterest', 'PointOfInterest'-'Place', 'Visit'-'Event', 'Visit'-'Place'], [reason, address, startDate, endDate]).
-
 
 invert_subj_obj([], []).
 invert_subj_obj([Subject-Object|T1], [Object-Subject|T2]) :-
   invert_subj_obj(T1, T2).
 
-% --- END OF SCHEMA ---
+% gather_attributes(+ClassName, -AllAttributes)
+% Gathers attributes from ClassName and all its superclasses.
+gather_attributes(ClassName, AllAttributes) :-
+    ClassName =.. [NameAtom], % Ensure ClassName is an atom if it's passed as a term
+    (   current_predicate(NameAtom/1) -> % It's an entity schema fact like 'Attraction'([...]).
+        SchemaClause =.. [NameAtom, DirectAttributes],
+        call(SchemaClause),
+        findall(SuperC, is_subclass(NameAtom, SuperC), ParentsListWithSelf),
+        remove_self(NameAtom, ParentsListWithSelf, ParentsList),
+        gather_parent_attributes_entity(ParentsList, ParentAttributesLists),
+        flatten([ParentAttributesLists, DirectAttributes], FlatAttributes),
+        list_to_set(FlatAttributes, AllAttributes) % Remove duplicates, keep order of first appearance somewhat
+    ;   current_predicate(NameAtom/2) -> % It's a relationship schema fact like 'belongsTo'([...],[...]).
+        SchemaClause =.. [NameAtom, _References, DirectAttributes],
+        call(SchemaClause),
+        findall(SuperC, is_subclass(NameAtom, SuperC), ParentsListWithSelf),
+        remove_self(NameAtom, ParentsListWithSelf, ParentsList),
+        gather_parent_attributes_relationship(ParentsList, ParentAttributesLists),
+        flatten([ParentAttributesLists, DirectAttributes], FlatAttributes),
+        list_to_set(FlatAttributes, AllAttributes)
+    ;   inverse_of(NameAtom, BaseRel) -> % It's an inverse relationship name
+        gather_attributes(BaseRel, AllAttributes) % Inverse relationships share attributes with their base
+    ;   AllAttributes = [] % Not a defined entity or relationship, or no attributes
+    ).
+
+remove_self(_, [], []).
+remove_self(Self, [Self|T], T) :- !.
+remove_self(Self, [H|T1], [H|T2]) :- remove_self(Self, T1, T2).
+
+gather_parent_attributes_entity([], []).
+gather_parent_attributes_entity([Parent|RestParents], AllParentAttributes) :-
+    ParentSchema =.. [Parent, ParentDirectAttributes],
+    (   call(ParentSchema) -> true ; ParentDirectAttributes = [] ),
+    gather_parent_attributes_entity(RestParents, RestAttributes),
+    append(ParentDirectAttributes, RestAttributes, AllParentAttributes).
+
+gather_parent_attributes_relationship([], []).
+gather_parent_attributes_relationship([Parent|RestParents], AllParentAttributes) :-
+    ParentSchema =.. [Parent, _ParentRefs, ParentDirectAttributes],
+    (   call(ParentSchema) -> true ; ParentDirectAttributes = [] ),
+    gather_parent_attributes_relationship(RestParents, RestAttributes),
+    append(ParentDirectAttributes, RestAttributes, AllParentAttributes).
 
 
-% --- FACTS ---
+% gather_references(+RelationshipName, -AllReferences)
+% Gathers Subject-Object references from RelationshipName and all its super-relationships.
+gather_references(RelationshipName, AllReferences) :-
+    RelationshipName =.. [NameAtom],
+    (   current_predicate(NameAtom/2) -> % It's a "normal" relationship schema fact
+        SchemaClause =.. [NameAtom, DirectReferences, _Attributes],
+        call(SchemaClause),
+        findall(SuperR, is_subclass(NameAtom, SuperR), ParentsListWithSelf),
+        remove_self(NameAtom, ParentsListWithSelf, ParentsList),
+        gather_parent_references_relationship(ParentsList, ParentReferencesLists),
+        flatten([ParentReferencesLists, DirectReferences], FlatReferences),
+        list_to_set(FlatReferences, AllReferences)
+    ;   inverse_of(NameAtom, BaseRel) -> % It's an inverse relationship name
+        gather_references(BaseRel, BaseReferences),
+        invert_subj_obj(BaseReferences, AllReferences) % Invert the references for the inverse
+    ;   AllReferences = [] % Not a defined relationship or no references
+    ).
 
-% Place Info (PlaceID, Name, AddressString, Lat, Long)
+gather_parent_references_relationship([], []).
+gather_parent_references_relationship([Parent|RestParents], AllParentReferences) :-
+    ParentSchema =.. [Parent, ParentDirectReferences, _ParentAttrs],
+    (   call(ParentSchema) -> true ; ParentDirectReferences = [] ),
+    gather_parent_references_relationship(RestParents, RestReferences),
+    append(ParentDirectReferences, RestReferences, AllParentReferences).
+
+
+% --- INSTANCE FACTS ---
+
+% -- Place Info (PlaceID, Name, AddressString, Lat, Long) --
 place_info(p1, 'Paris City Center', '1 Rue de Rivoli, 75001 Paris, France', 48.8566, 2.3522).
 place_info(p2, 'Rome Historic Center', 'Piazza Navona, 00186 Rome, Italy', 41.8992, 12.4731).
 place_info(p3, 'Kyoto Gion District', 'Gion, Higashiyama Ward, Kyoto, Japan', 35.0030, 135.7780).
 
-% Person Info (PersonID, Name)
+% -- Person Info (PersonID, Name) --
 person_info(person1, 'Alice Wonderland').
 person_info(person2, 'Bob The Builder').
 person_info(artist_davinci, 'Leonardo da Vinci').
+% Note: Your discontiguous directive was person_info/4, facts are person_info/2.
+% For consistency with facts, I'll assume person_info(ID, Name).
+% If you need more attributes, define them in person_info/N and in entity schema for 'Person'.
 
-% Category Info (CategoryID, Name)
+% -- Category Info (CategoryID, Name) --
 category_info(cat_art, 'Art').
 category_info(cat_history, 'History').
 category_info(cat_foodie, 'Foodie Experience').
 category_info(cat_relax, 'Relaxation').
 category_info(cat_architecture, 'Architecture').
 
-% Collection Info (CollectionID, Name)
+% -- Collection Info (CollectionID, Name) --
 collection_info(col1, 'Paris Must-See Art').
 collection_info(col2, 'Roman Holiday Itinerary').
 
-% Event Info (EventID, Name, Date)
+% -- Event Info (EventID, Name, Date) --
 event_info(event_paris_fest, 'Paris Summer Festival', date(2024,7,14)).
 
-% Entities (EntityID, EntityType, ListOfAttributes)
+% -- Entities (EntityID, EntityType, ListOfAttributes) --
+% Added attr(name, ...) where it was missing in schema but present in facts, for consistency.
+% Consider formally adding 'name' to 'PointOfInterest' and 'PlaceToVisit' schemas if it's a common attribute.
 entity(louvre, 'Museum', [attr(name, 'Louvre Museum'), attr(place, p1), attr(estimatedCost, 20), attr(requiresTicket, true), attr(phone, '+33 1 40 20 50 50')]).
 entity(eiffel_tower, 'Tower', [attr(name, 'Eiffel Tower'), attr(place, p1), attr(estimatedCost, 25), attr(requiresTicket, true), attr(timeLimit, 180)]).
 entity(colosseum, 'ArchaeologicalSite', [attr(name, 'Colosseum'), attr(place, p2), attr(estimatedCost, 18), attr(requiresTicket, true)]).
@@ -246,37 +459,36 @@ entity(le_bistro_parisien, 'Bistro', [attr(name, 'Le Bistro Parisien'), attr(pla
 entity(kyoto_ramen, 'Restaurant', [attr(name, 'Kyoto Ramen Shop'), attr(place, p3), attr(foodType, 'Generic'), attr(type, 'Japanese'), attr(estimatedCost, 15)]).
 entity(sushi_master_kyoto, 'Restaurant', [attr(name, 'Sushi Master Kyoto'), attr(place, p3), attr(foodType, 'Fish'), attr(type, 'Japanese High-End'), attr(estimatedCost, 150)]).
 
-
 entity(grand_hotel_paris, 'Hotel', [attr(name, 'Grand Hotel Paris'), attr(place, p1), attr(stars, 5), attr(phone, '+33 1 23 45 67 89')]).
 entity(budget_inn_rome, 'Hotel', [attr(name, 'Budget Inn Rome'), attr(place, p2), attr(stars, 2)]).
 entity(ryokan_kyoto, 'Hotel', [attr(name, 'Gion Ryokan'), attr(place, p3), attr(stars, 4)]).
 
 entity(ghp_yoga_class, 'Yoga', [attr(name, 'Sunrise Yoga')]).
-entity(ghp_spa_service, 'Resort', [attr(name, 'Hotel Main Spa')]). % Resort is a subtype of Spa
+entity(ghp_spa_service, 'Resort', [attr(name, 'Hotel Main Spa')]).
 entity(ghp_cooking_class, 'CookingClass', [attr(name, 'French Pastry Class')]).
 entity(ghp_bike_tour, 'BikeTour', [attr(name, 'Paris City Bike Tour')]).
-entity(ryokan_onsen, 'Spa', [attr(name, 'Private Onsen Experience')]). % Spa, not a specific subtype here
-entity(ryokan_tea_ceremony, 'HotelService', [attr(name, 'Traditional Tea Ceremony')]). % Generic hotel service
+entity(ryokan_onsen, 'Spa', [attr(name, 'Private Onsen Experience')]).
+entity(ryokan_tea_ceremony, 'HotelService', [attr(name, 'Traditional Tea Ceremony')]).
 
 entity(paris_main_station, 'Station', [attr(name, 'Gare du Nord'), attr(place, p1), attr(kind, 'Train')]).
 entity(rome_fco_airport, 'Station', [attr(name, 'Fiumicino Airport'), attr(place, p2), attr(kind, 'Airport')]).
 
-entity(my_sedan, 'Car', [attr(type, 'Sedan'), attr(availability, true), attr(consumption, '7L/100km'), attr(typeOfFuel, 'Gasoline')]).
-entity(city_bus_101, 'Bus', [attr(availability, true), attr(consumption, '20L/100km'), attr(typeOfFuel, 'Diesel')]).
-entity(paris_metro_line1, 'RailTransportation', [attr(transportType, 'Subway'), attr(availability, true)]).
+entity(my_sedan, 'Car', [attr(name, 'My Sedan'), attr(type, 'Sedan'), attr(availability, true), attr(consumption, '7L/100km'), attr(typeOfFuel, 'Gasoline')]).
+entity(city_bus_101, 'Bus', [attr(name, 'City Bus 101'), attr(availability, true), attr(consumption, '20L/100km'), attr(typeOfFuel, 'Diesel')]).
+entity(paris_metro_line1, 'RailTransportation', [attr(name, 'Paris Metro Line 1'), attr(transportType, 'Subway'), attr(availability, true)]).
 
 entity(mona_lisa, 'Attraction', [attr(name, 'Mona Lisa'), attr(date, '1503-1506'), attr(technique, 'Oil on poplar panel'), attr(material, 'Oil paint, Poplar wood')]).
 entity(david_statue, 'Attraction', [attr(name, 'Statue of David'), attr(date, '1501-1504'), attr(technique, 'Sculpture'), attr(material, 'Marble')]).
 
-entity(paris_trip_alice, 'Visit', [attr(startDate, date(2024,8,1)), attr(endDate, date(2024,8,7)), attr(budget, 2000)]).
-entity(rome_weekend_bob, 'Visit', [attr(startDate, date(2024,9,10)), attr(endDate, date(2024,9,12)), attr(budget, 500)]).
+entity(paris_trip_alice, 'Visit', [attr(name, 'Alice Paris Trip'), attr(startDate, date(2024,8,1)), attr(endDate, date(2024,8,7)), attr(budget, 2000)]).
+entity(rome_weekend_bob, 'Visit', [attr(name, 'Bob Rome Weekend'), attr(startDate, date(2024,9,10)), attr(endDate, date(2024,9,12)), attr(budget, 500)]).
 
 entity(pharmacy_central_paris, 'Pharmacy', [attr(name, 'Central Pharmacy Paris'), attr(place, p1), attr(phone, '+33 1 98 76 54 32')]).
 entity(bank_of_paris, 'Bank', [attr(name, 'Bank of Paris'), attr(place, p1)]).
 
-% Relationships (RelationshipName, SubjectID, ObjectID, ListOfAttributes)
-rel(wasIn, mona_lisa, louvre, []). % Mona Lisa is in Louvre
-rel(wasIn, louvre, p1, []). % Louvre is at place p1
+% -- Relationships (RelationshipName, SubjectID, ObjectID, ListOfAttributes) --
+rel(wasIn, mona_lisa, louvre, []).
+rel(wasIn, louvre, p1, []).
 rel(wasIn, eiffel_tower, p1, []).
 rel(wasIn, colosseum, p2, []).
 rel(wasIn, grand_hotel_paris, p1, []).
@@ -291,14 +503,12 @@ rel(wasIn, trevi_fountain, p2, []).
 rel(wasIn, pharmacy_central_paris, p1, []).
 rel(wasIn, bank_of_paris, p1, []).
 
-
 rel(wasIn, ghp_yoga_class, grand_hotel_paris, [attr(reason, 'hotel_amenity')]).
 rel(wasIn, ghp_spa_service, grand_hotel_paris, [attr(reason, 'hotel_amenity')]).
 rel(wasIn, ghp_cooking_class, grand_hotel_paris, [attr(reason, 'hotel_activity')]).
 rel(wasIn, ghp_bike_tour, grand_hotel_paris, [attr(reason, 'hotel_activity')]).
 rel(wasIn, ryokan_onsen, ryokan_kyoto, [attr(reason, 'hotel_amenity')]).
 rel(wasIn, ryokan_tea_ceremony, ryokan_kyoto, [attr(reason, 'cultural_offering')]).
-
 
 rel(relevantFor, louvre, cat_art, [attr(role, 'primary_focus')]).
 rel(relevantFor, louvre, cat_architecture, [attr(role, 'building_style')]).
@@ -308,44 +518,37 @@ rel(relevantFor, trattoria_romana, cat_foodie, [attr(role, 'dining_experience')]
 rel(relevantFor, ghp_spa_service, cat_relax, [attr(role, 'wellness_service')]).
 rel(relevantFor, ryokan_onsen, cat_relax, [attr(role, 'wellness_service')]).
 
-rel(belongsTo, louvre, col1, []). % Louvre belongs to "Paris Must-See Art" collection
+rel(belongsTo, louvre, col1, []).
 rel(belongsTo, eiffel_tower, col1, []).
 rel(belongsTo, colosseum, col2, []).
 rel(belongsTo, trevi_fountain, col2, []).
 
-rel(makes, col1, paris_trip_alice, [attr(role, 'itinerary_basis')]). % Collection "Paris Must-See Art" makes up Alice's Paris trip
-rel(makes, person1, paris_trip_alice, [attr(role, 'planner')]). % Alice planned her Paris trip
+rel(makes, col1, paris_trip_alice, [attr(role, 'itinerary_basis')]).
+rel(makes, person1, paris_trip_alice, [attr(role, 'planner')]).
 rel(makes, person2, rome_weekend_bob, [attr(role, 'traveler')]).
 
-rel(developed, artist_davinci, mona_lisa, [attr(role, 'painter')]). % Da Vinci developed Mona Lisa
+rel(developed, artist_davinci, mona_lisa, [attr(role, 'painter')]).
 
-rel(isA, p1, louvre, []). % The place p1 is (represented by) the Louvre. (Interpretation of isA Place-PointOfInterest)
-                         % Or, more accurately, the POI refers to a Place entity.
-                         % The schema says 'Place'-'PointOfInterest'. This means a specific named Place (like 'Louvre Building') *is a* PointOfInterest.
-                         % My entity(louvre, 'Museum', [attr(place, p1)...]) already links the POI to a generic place_info(p1, ...).
-                         % Let's use 'isA' for Artifact-Attraction for now.
-                         % If an artifact 'mona_lisa_artifact' is the attraction 'mona_lisa_attraction_entry'
-% For 'isA' Place-PointOfInterest: this means a specific place (e.g. 'Eiffel Tower Structure') is a PointOfInterest.
-% This is slightly different from a POI *being at* a place.
-% Let's assume we have specific Place entities that are also POIs.
-% entity(eiffel_tower_struct, 'Place', [attr(name, 'Eiffel Tower Structure')]).
-% rel(isA, eiffel_tower_struct, eiffel_tower, []). % The Eiffel Tower Structure (a Place) is the POI Eiffel Tower.
-
-% For 'isA' Artifact-Attraction:
-% entity(mona_lisa_artifact_obj, 'Artifact', [attr(description, 'The physical painting')]).
-% rel(isA, mona_lisa_artifact_obj, mona_lisa, []). % The artifact object is the attraction Mona Lisa.
+% rel(isA, p1, louvre, []). % This interpretation of isA(Place, POI) is tricky.
+                           % The schema is 'Place'-'PointOfInterest'.
+                           % It implies a specific Place instance *is* a POI.
+                           % E.g., entity(louvre_building, 'Place', [...]).
+                           %        entity(louvre_poi, 'Museum', [...]).
+                           %        rel(isA, louvre_building, louvre_poi, []).
+                           % For now, focusing on isA(Artifact, Attraction) if you have Artifact entities.
+                           % entity(mona_lisa_artifact_obj, 'Artifact', [attr(description, 'The physical painting')]).
+                           % rel(isA, mona_lisa_artifact_obj, mona_lisa, []).
 
 
-% --- RULES (30) ---
+% --- DOMAIN-SPECIFIC RULES (30) ---
 
-% Helper to get a single attribute value
+% Helper to get a single attribute value from an entity's attribute list
 get_attribute_value(EntityID, AttrName, Value) :-
     entity(EntityID, _, Attributes),
     member(attr(AttrName, Value), Attributes).
 get_attribute_value(EntityID, AttrName, default) :- % Default if attribute not found
     entity(EntityID, _, Attributes),
     \+ member(attr(AttrName, _), Attributes).
-
 
 % 1. Identify any Point of Interest
 is_poi(PoiID) :-
@@ -359,18 +562,18 @@ is_eating_place(PlaceID) :-
 
 % 3. Find restaurants of a specific food type
 restaurant_food_type(RestaurantID, FoodType) :-
-    entity(RestaurantID, 'Restaurant', Attributes),
+    entity(RestaurantID, 'Restaurant', Attributes), % Assumes direct type 'Restaurant'
     member(attr(foodType, FoodType), Attributes).
 
 % 4. Find luxury hotels (e.g., 4 stars or more)
 is_luxury_hotel(HotelID) :-
-    entity(HotelID, 'Hotel', Attributes),
+    entity(HotelID, 'Hotel', Attributes), % Assumes direct type 'Hotel'
     member(attr(stars, Stars), Attributes),
     Stars >= 4.
 
 % 5. Find budget hotels (e.g., 2 stars or less)
 is_budget_hotel(HotelID) :-
-    entity(HotelID, 'Hotel', Attributes),
+    entity(HotelID, 'Hotel', Attributes), % Assumes direct type 'Hotel'
     member(attr(stars, Stars), Attributes),
     Stars =< 2.
 
@@ -383,11 +586,11 @@ poi_requires_ticket(PoiID) :-
 poi_is_free(PoiID) :-
     is_poi(PoiID),
     get_attribute_value(PoiID, requiresTicket, false).
-poi_is_free(PoiID) :- % Also consider free if cost is 0
+poi_is_free(PoiID) :- % Also consider free if cost is 0 and requiresTicket is not explicitly false
     is_poi(PoiID),
+    \+ get_attribute_value(PoiID, requiresTicket, true), % Not explicitly true
     get_attribute_value(PoiID, estimatedCost, Cost),
     Cost =:= 0.
-
 
 % 8. Find POIs with an estimated cost below a certain budget
 poi_cheaper_than(PoiID, MaxCost) :-
@@ -397,54 +600,56 @@ poi_cheaper_than(PoiID, MaxCost) :-
     Cost < MaxCost.
 
 % 9. Find hotels offering a specific type of hotel service (e.g., 'Yoga', 'Spa')
-hotel_offers_service_type(HotelID, ServiceEntityID, ServiceType) :-
+hotel_offers_service_type(HotelID, ServiceEntityID, TargetServiceType) :-
     entity(HotelID, 'Hotel', _),
-    rel(wasIn, ServiceEntityID, HotelID, _), % A service entity is 'in' the hotel
-    entity(ServiceEntityID, ActualServiceType, _),
-    is_subclass(ActualServiceType, 'HotelService'),
-    is_subclass(ActualServiceType, ServiceType). % ServiceType can be 'Yoga', 'Spa', or even 'HotelService' itself
+    rel(wasIn, ServiceEntityID, HotelID, _),
+    entity(ServiceEntityID, ActualServiceEntityType, _),
+    is_subclass(ActualServiceEntityType, 'HotelService'), % Ensure it's a hotel service
+    is_subclass(ActualServiceEntityType, TargetServiceType). % Check if it's the target type or a subtype
 
-% 10. Find POIs located at a specific place (using PlaceID)
+% 10. Find POIs located at a specific place (using PlaceID from entity attribute)
 poi_at_place(PoiID, PlaceID) :-
     is_poi(PoiID),
     get_attribute_value(PoiID, place, PlaceID).
 
 % 11. Find POIs in a specific city (by matching PlaceID to place_info name)
 poi_in_city(PoiID, CityName) :-
-    poi_at_place(PoiID, PlaceID),
+    poi_at_place(PoiID, PlaceID), % Uses rule 10
     place_info(PlaceID, CityName, _, _, _).
 
-% 12. Generalize: is something a "cultural site"? (Museum, ArchSite, Monument, Palace, Theater)
+% 12. Generalize: is something a "cultural site"?
 is_cultural_site(SiteID) :-
     entity(SiteID, Type, _),
-    (is_subclass(Type, 'Museum');
-     is_subclass(Type, 'ArchaeologicalSite');
-     is_subclass(Type, 'Monument');
-     is_subclass(Type, 'Palace');
-     is_subclass(Type, 'Theater');
-     is_subclass(Type, 'Church');
-     is_subclass(Type, 'Cathedral')).
+    ( is_subclass(Type, 'Museum');
+      is_subclass(Type, 'ArchaeologicalSite');
+      is_subclass(Type, 'Monument');
+      is_subclass(Type, 'Palace');
+      is_subclass(Type, 'Theater');
+      is_subclass(Type, 'Church'); % Includes Cathedrals, Mosques etc. if they are Churches
+      is_subclass(Type, 'Cathedral');
+      is_subclass(Type, 'Library');
+      is_subclass(Type, 'Archive')
+    ).
 
-% 13. Find relaxation spots (Spas, Parks, some types of HotelServices like Yoga)
-is_relaxation_spot(SpotID) :- entity(SpotID, Type, _), is_subclass(Type, 'Spa').
-is_relaxation_spot(SpotID) :- entity(SpotID, Type, _), is_subclass(Type, 'Park').
-is_relaxation_spot(SpotID) :- entity(SpotID, Type, _), (is_subclass(Type, 'Yoga'); is_subclass(Type, 'Pilates')).
-is_relaxation_spot(SpotID) :- hotel_offers_service_type(_, SpotID, 'Spa'). % A spa service offered by a hotel
-is_relaxation_spot(SpotID) :- hotel_offers_service_type(_, SpotID, 'Yoga'). % A yoga service
+% 13. Find relaxation spots (Spas, Parks, some types of HotelServices like Yoga) generalized with a list.
+relaxation_type(Type) :- member(Type, ['Spa', 'Park', 'Yoga', 'Pilates', 'Resort', 'Massage']).
+is_relaxation_spot(ID) :-
+  entity(ID, T, _), relaxation_type(Base),
+  is_subclass(T, Base).
+
 
 % 14. Is a transportation means a road vehicle?
 is_road_vehicle(VehicleID) :-
     entity(VehicleID, Type, _),
     is_subclass(Type, 'RoadTransportation').
 
-% 15. Is a transportation means eco-friendly (e.g. Bike, Skateboard, or electric)?
-% (Schema doesn't have 'electric', so we'll stick to Bike/Skateboard for now)
+% 15. Is a transportation means eco-friendly (e.g. Bike, Skateboard)?
 is_eco_friendly_transport(TransportID) :-
     entity(TransportID, Type, _),
-    (Type = 'Bike' ; Type = 'Skateboard' ; is_subclass(Type, 'Bike') ; is_subclass(Type, 'Skateboard')).
-% Could be extended if typeOfFuel='Electric' was an option:
-% is_eco_friendly_transport(TransportID) :-
-% get_attribute_value(TransportID, typeOfFuel, 'Electric').
+    ( is_subclass(Type, 'Bike') ;
+      is_subclass(Type, 'Skateboard')
+      % Could add: get_attribute_value(TransportID, typeOfFuel, 'Electric') if data exists
+    ).
 
 % 16. Find POIs relevant for a specific category (e.g., 'Art')
 poi_for_category(PoiID, CategoryName) :-
@@ -455,29 +660,30 @@ poi_for_category(PoiID, CategoryName) :-
 % 17. Find a person who planned a specific visit
 visit_planner(VisitID, PersonID) :-
     entity(VisitID, 'Visit', _),
-    person_info(PersonID, _),
+    person_info(PersonID, _Name),
     rel(makes, PersonID, VisitID, Attributes),
     member(attr(role, 'planner'), Attributes).
 
-% 18. Find all POIs included in a person's visit (via collections)
+% 18. Find all POIs included in a person's visit (via collections linked to the visit)
 poi_in_person_visit(PersonID, PoiID) :-
-    visit_planner(VisitID, PersonID), % Find a visit planned by the person
-    rel(makes, CollectionID, VisitID, _), % Find collections that make up this visit
+    person_info(PersonID, _),
+    rel(makes, PersonID, VisitID, _), % Person makes/plans a visit
+    entity(VisitID, 'Visit', _),
+    rel(makes, CollectionID, VisitID, _), % Collection makes up the visit
     collection_info(CollectionID, _),
-    rel(belongsTo, PoiID, CollectionID, _), % Find POIs belonging to that collection
+    rel(belongsTo, PoiID, CollectionID, _), % POI belongs to that collection
     is_poi(PoiID).
 
-% 19. Is an attraction made of a specific material?
-attraction_material(AttractionID, Material) :-
+% 19. Is an attraction made of a specific material? (allows partial match)
+attraction_material(AttractionID, MaterialString) :-
     entity(AttractionID, 'Attraction', Attributes),
     member(attr(material, ActualMaterial), Attributes),
-    % Allow partial match for material string
-    sub_string(ActualMaterial, _, _, _, Material).
+    sub_string(ActualMaterial, _, _, _, MaterialString).
 
 % 20. Find attractions developed by a specific person (e.g. artist)
 attraction_by_developer(AttractionID, PersonID) :-
     entity(AttractionID, 'Attraction', _),
-    person_info(PersonID, _),
+    person_info(PersonID, _Name),
     rel(developed, PersonID, AttractionID, _).
 
 % 21. Is a POI a type of 'Service'?
@@ -491,24 +697,24 @@ is_place_to_visit_poi(PoiID) :-
     is_subclass(Type, 'PlaceToVisit').
 
 % 23. Find hotels that offer any kind of beauty service
-hotel_offers_beauty_service(HotelID, ServiceEntityID, BeautyServiceType) :-
-    hotel_offers_service_type(HotelID, ServiceEntityID, ServiceType), % Rule 9
-    entity(ServiceEntityID, BeautyServiceType, _),
-    is_subclass(BeautyServiceType, 'BeautyService').
+hotel_offers_beauty_service(HotelID, ServiceEntityID, SpecificBeautyServiceType) :-
+    hotel_offers_service_type(HotelID, ServiceEntityID, _AnyHotelServiceType), % Finds any service in hotel
+    entity(ServiceEntityID, SpecificBeautyServiceType, _), % Gets the specific type of that service entity
+    is_subclass(SpecificBeautyServiceType, 'BeautyService'). % Checks if it's a beauty service
 
 % 24. Find places that offer Thai Massage
 offers_thai_massage(PlaceID) :- % PlaceID could be a hotel or a standalone spa
     entity(PlaceID, 'Hotel', _), % If it's a hotel
-    hotel_offers_service_type(PlaceID, ServiceEntityID, 'Thai').
-offers_thai_massage(PlaceID) :- % If it's a standalone BeautyService entity
-    entity(PlaceID, 'Thai', _),
-    is_subclass('Thai', 'BeautyService'). % Ensure it's a beauty service not something else also named Thai
+    hotel_offers_service_type(PlaceID, _ServiceEntityID, 'Thai').
+offers_thai_massage(PlaceID) :- % If it's a standalone BeautyService entity that is Thai
+    entity(PlaceID, 'Thai', _), % Directly a 'Thai' massage service entity
+    is_subclass('Thai', 'BeautyService'). % And it's a subtype of BeautyService
 
 % 25. Find POIs that have a time limit for visits
 poi_has_time_limit(PoiID, TimeLimitMinutes) :-
     is_poi(PoiID),
     get_attribute_value(PoiID, timeLimit, TimeLimitMinutes),
-    number(TimeLimitMinutes).
+    number(TimeLimitMinutes), TimeLimitMinutes > 0.
 
 % 26. Find available road transportation
 available_road_transport(TransportID, Type) :-
@@ -519,22 +725,156 @@ available_road_transport(TransportID, Type) :-
 % 27. Is an eating place a Pizzeria or a Stakehouse?
 is_pizzeria_or_stakehouse(PlaceID) :-
     entity(PlaceID, Type, _),
-    (Type = 'Pizzeria' ; Type = 'Stakehouse'). % Direct check as they are specific
+    (is_subclass(Type, 'Pizzeria') ; is_subclass(Type, 'Stakehouse')).
 
-% 28. Find POIs that are religious sites
-is_religious_site(SiteID, ReligionType) :-
-    entity(SiteID, ReligionType, _),
-    is_subclass(ReligionType, 'ReligiousService').
+% 28. Find POIs that are religious sites (based on ReligiousService hierarchy)
+is_religious_service_site(SiteID, SpecificReligionType) :-
+    entity(SiteID, SpecificReligionType, _),
+    is_subclass(SpecificReligionType, 'ReligiousService').
+% If you mean places of worship like Churches, Mosques that are 'PlaceToVisit':
+is_place_of_worship(SiteID, Type) :-
+    entity(SiteID, Type, _),
+    ( is_subclass(Type, 'Church');
+      is_subclass(Type, 'Mosque');
+      is_subclass(Type, 'Temple');
+      is_subclass(Type, 'Shrine');
+      is_subclass(Type, 'Synagogue') % Assuming Synagogue would be under Jewish if defined
+    ).
+
 
 % 29. Find shops of a particular type (e.g., 'Gifts')
 shop_of_type(ShopID, ShopType) :-
-    entity(ShopID, 'Shop', Attributes),
+    entity(ShopID, 'Shop', Attributes), % Assumes direct type 'Shop'
     member(attr(type, ShopType), Attributes).
 
 % 30. Find stations serving a specific kind of transport (e.g., 'Train', 'Airport')
 station_serves_transport_kind(StationID, Kind) :-
-    entity(StationID, 'Station', Attributes),
+    entity(StationID, 'Station', Attributes), % Assumes direct type 'Station'
     member(attr(kind, Kind), Attributes).
+
+% --- SEARCH RULES ---
+
+% Helper: Get entity name if it exists, otherwise use its ID as name
+get_entity_display_name(EntityID, DisplayName) :-
+    get_attribute_value(EntityID, name, NameValue),
+    NameValue \== default, % Check if 'name' attribute exists and has a value
+    !,
+    DisplayName = NameValue.
+get_entity_display_name(EntityID, EntityID). % Fallback to ID if no name attribute
+
+% S1: Find Point of Interest by exact name
+find_poi_by_name(NameString, PoiID) :-
+    is_poi(PoiID),
+    get_attribute_value(PoiID, name, NameString).
+
+% S2: Find Point of Interest by partial name (case-insensitive for substring)
+find_poi_by_partial_name(SearchString, PoiID) :-
+    is_poi(PoiID),
+    get_attribute_value(PoiID, name, ActualName),
+    string_lower(SearchString, LowerSearch),
+    string_lower(ActualName, LowerActualName),
+    sub_string(LowerActualName, _, _, _, LowerSearch).
+
+% S3: Find entities of a specific type with a specific attribute value
+find_entity_by_type_and_attribute(EntityType, AttrName, AttrValue, EntityID) :-
+    entity(EntityID, ActualEntityType, Attributes),
+    is_subclass(ActualEntityType, EntityType), % EntityType can be a superclass
+    member(attr(AttrName, AttrValue), Attributes).
+
+% Example usage of S3:
+% ?- find_entity_by_type_and_attribute('Hotel', stars, 5, HotelID).
+% ?- find_entity_by_type_and_attribute('Restaurant', foodType, 'Fish', RestID).
+
+% S4: Find POIs in a given city that match a category
+find_pois_in_city_by_category(CityName, CategoryName, PoiID) :-
+    poi_in_city(PoiID, CityName),         % Rule 11 from previous set
+    poi_for_category(PoiID, CategoryName). % Rule 16 from previous set
+
+% S5: Find POIs that are free and belong to a specific category
+find_free_pois_by_category(CategoryName, PoiID) :-
+    poi_is_free(PoiID),                   % Rule 7 from previous set
+    poi_for_category(PoiID, CategoryName).
+
+% S6: Find hotels in a city with a minimum star rating offering a specific service type
+find_hotels_in_city_by_stars_and_service(CityName, MinStars, ServiceTypeName, HotelID, ServiceEntityID) :-
+    entity(HotelID, 'Hotel', Attributes),
+    member(attr(stars, Stars), Attributes),
+    Stars >= MinStars,
+    poi_in_city(HotelID, CityName), % Hotels are POIs
+    hotel_offers_service_type(HotelID, ServiceEntityID, ServiceTypeName). % Rule 9
+
+% S7: Search for transportation options between two (conceptual) places/POIs
+% This is a simplified search, assuming direct transport or via a shared station.
+% For more complex routing, a graph search algorithm would be needed.
+% This rule finds means of transport available at places associated with POI1 and POI2.
+% It doesn't guarantee a direct route, just co-located transport.
+
+% Find transport available at the place of a POI
+transport_at_poi_place(PoiID, TransportID, TransportType) :-
+    poi_at_place(PoiID, PlaceID), % Get the PlaceID of the POI
+    % Find stations at this PlaceID
+    entity(StationID, 'Station', StationAttrs),
+    member(attr(place, PlaceID), StationAttrs), % Station is at the same PlaceID
+    member(attr(kind, StationKind), StationAttrs), % e.g., Train, Airport, Bus
+    % Find transport means associated with this kind of station or type
+    % This link is often implicit or needs more schema.
+    % For now, let's find any available transport of a type that *could* use such a station.
+    available_road_transport(TransportID, TransportType), % Road transport is generally available
+    (TransportType = 'Bus' ; TransportType = 'Taxi'). % Example: Buses/Taxis are generally at places
+    % Or, more specific to station kind:
+transport_at_poi_place(PoiID, TransportID, TransportType) :-
+    poi_at_place(PoiID, PlaceID),
+    entity(StationID, 'Station', [attr(place, PlaceID), attr(kind, 'Train')]),
+    entity(TransportID, TransportType, _), is_subclass(TransportType, 'RailTransportation').
+transport_at_poi_place(PoiID, TransportID, TransportType) :-
+    poi_at_place(PoiID, PlaceID),
+    entity(StationID, 'Station', [attr(place, PlaceID), attr(kind, 'Airport')]),
+    entity(TransportID, TransportType, _), is_subclass(TransportType, 'AirTransportation').
+
+% S8: Find POIs relevant to a list of categories (POI must be relevant to ALL listed categories)
+find_pois_for_multiple_categories([], _PoiID) :- !, fail. % Should not happen with proper call
+find_pois_for_multiple_categories(CategoryList, PoiID) :-
+    is_poi(PoiID),
+    forall(member(CategoryName, CategoryList), poi_for_category(PoiID, CategoryName)).
+
+% S9: Find "Luxury Cultural Experiences" - e.g. 4+ star Hotels near Cultural Sites, or highly-rated cultural sites
+find_luxury_cultural_experiences(ExperienceID) :-
+    is_luxury_hotel(ExperienceID), % Rule 4
+    poi_at_place(ExperienceID, HotelPlaceID),
+    is_cultural_site(CulturalSiteID), % Rule 12
+    poi_at_place(CulturalSiteID, CulturalSitePlaceID),
+    HotelPlaceID == CulturalSitePlaceID. % Simplistic: same general place ID
+    % Could add a distance check if lat/long were consistently used.
+find_luxury_cultural_experiences(ExperienceID) :-
+    is_cultural_site(ExperienceID),
+    get_attribute_value(ExperienceID, estimatedCost, Cost),
+    (Cost == default ; Cost >= 50). % Example: "luxury" cultural site if expensive or unknown cost
+
+% S10: Content-based recommendation: Find POIs of the same specific type and in the same city as a given POI
+recommend_similar_poi(GivenPoiID, RecommendedPoiID) :-
+    is_poi(GivenPoiID),
+    entity(GivenPoiID, Type, _),
+    poi_in_city(GivenPoiID, CityName),
+    is_poi(RecommendedPoiID),
+    RecommendedPoiID \== GivenPoiID, % Not the same POI
+    entity(RecommendedPoiID, Type, _), % Same specific type
+    poi_in_city(RecommendedPoiID, CityName). % In the same city
+
+% S11: Search for attractions by material and technique
+find_attractions_by_material_technique(Material, Technique, AttractionID) :-
+    entity(AttractionID, 'Attraction', Attributes),
+    (Material = '*' ; member(attr(material, MatVal), Attributes), sub_string(MatVal, _,_,_, Material)),
+    (Technique = '*' ; member(attr(technique, TechVal), Attributes), sub_string(TechVal, _,_,_, Technique)).
+% Use '*' as a wildcard for material or technique.
+
+% S12: Find visits planned by a specific person within a budget range
+find_visits_by_planner_and_budget(PersonID, MinBudget, MaxBudget, VisitID) :-
+    visit_planner(VisitID, PersonID), % Rule 17
+    entity(VisitID, 'Visit', Attributes),
+    member(attr(budget, Budget), Attributes),
+    Budget >= MinBudget,
+    Budget =< MaxBudget.
+
 
 % --- QUERY EXAMPLES ---
 /*
@@ -554,9 +894,9 @@ station_serves_transport_kind(StationID, Kind) :-
 ?- restaurant_food_type(sushi_master_kyoto, FoodType).
    FoodType = 'Fish'.
 
-?- is_luxury_hotel(H).
+?- is_luxury_hotel(H).ƒ
    H = grand_hotel_paris ;
-   H = ryokan_kyoto.
+   H = ryokan_kyoto.ƒ
 
 ?- is_budget_hotel(budget_inn_rome).
    true.
@@ -735,3 +1075,45 @@ station_serves_transport_kind(StationID, Kind) :-
 ?- get_attribute_value(eiffel_tower, name, Name).
    Name = 'Eiffel Tower'.
 */
+/*
+
+% --- Examples for Search Rules ---
+
+?- find_poi_by_name('Louvre Museum', ID).
+% Expected: ID = louvre.
+
+?- find_poi_by_partial_name('tower', ID), get_entity_display_name(ID, Name).
+% Expected: ID = eiffel_tower, Name = 'Eiffel Tower'. (and others if they exist)
+
+?- find_entity_by_type_and_attribute('Hotel', stars, 5, HotelID), get_entity_display_name(HotelID, Name).
+% Expected: HotelID = grand_hotel_paris, Name = 'Grand Hotel Paris'.
+
+?- find_pois_in_city_by_category('Paris City Center', 'Art', PoiID), get_entity_display_name(PoiID, Name).
+% Expected: PoiID = louvre, Name = 'Louvre Museum'.
+
+?- find_free_pois_by_category('History', PoiID), get_entity_display_name(PoiID, Name).
+% Expected: (depends on facts, e.g. if Trevi Fountain was categorized as History and is free)
+
+?- find_hotels_in_city_by_stars_and_service('Paris City Center', 4, 'Spa', HotelID, ServiceID), get_entity_display_name(HotelID, HotelName), get_entity_display_name(ServiceID, ServiceName).
+% Expected: HotelID = grand_hotel_paris, ServiceID = ghp_spa_service, HotelName = 'Grand Hotel Paris', ServiceName = 'Hotel Main Spa'. (Assuming ghp_spa_service is type Spa)
+
+?- find_pois_for_multiple_categories(['Art', 'Architecture'], PoiID), get_entity_display_name(PoiID, Name).
+% Expected: PoiID = louvre, Name = 'Louvre Museum'. (if Louvre is in both)
+
+?- find_luxury_cultural_experiences(ID), get_entity_display_name(ID, Name).
+% Expected: (e.g. grand_hotel_paris if it's near a cultural site, or expensive cultural sites)
+
+?- recommend_similar_poi(louvre, RecID), get_entity_display_name(RecID, RecName).
+% Expected: (any other 'Museum' in 'Paris City Center')
+
+?- find_attractions_by_material_technique('Marble', '*', AttID), get_entity_display_name(AttID, Name).
+% Expected: AttID = david_statue, Name = 'Statue of David'.
+
+?- find_attractions_by_material_technique('*', 'Oil on poplar panel', AttID), get_entity_display_name(AttID, Name).
+% Expected: AttID = mona_lisa, Name = 'Mona Lisa'.
+
+?- find_visits_by_planner_and_budget(person1, 1500, 2500, VisitID), get_entity_display_name(VisitID, Name).
+% Expected: VisitID = paris_trip_alice, Name = 'Alice Paris Trip'.
+
+*/
+% --- END OF FILE ---
