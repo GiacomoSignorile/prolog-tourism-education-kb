@@ -575,7 +575,7 @@ is_luxury_hotel(HotelID) :-
 is_budget_hotel(HotelID) :-
     entity(HotelID, 'Hotel', Attributes), % Assumes direct type 'Hotel'
     member(attr(stars, Stars), Attributes),
-    Stars =< 2.
+    Stars =< 3.
 
 % 6. Check if a POI requires a ticket
 poi_requires_ticket(PoiID) :-
@@ -874,6 +874,27 @@ find_visits_by_planner_and_budget(PersonID, MinBudget, MaxBudget, VisitID) :-
     member(attr(budget, Budget), Attributes),
     Budget >= MinBudget,
     Budget =< MaxBudget.
+
+% Implementation of DFS to find all subtypes of a given class
+all_subtypes_of(ParentClass, Subtype) :-
+    dfs_find_all_subtypes(ParentClass, Subtype).
+
+% DFS to find all descendants (subtypes) of a class
+dfs_find_all_subtypes(Class, Descendant) :-
+    dfs_subtypes_recursive(Class, [], Descendant).
+
+% Recursive DFS implementation
+dfs_subtypes_recursive(Node, Visited, Descendant) :-
+    direct_children(Node, Children),
+    member(Child, Children),
+    \+ member(Child, Visited), % Avoid cycles
+    (   Descendant = Child
+    ;   dfs_subtypes_recursive(Child, [Child|Visited], Descendant)
+    ).
+
+% Helper: Find direct children of a class
+direct_children(Parent, Children) :-
+    findall(Child, subclass_of(Child, Parent), Children).
 
 
 % --- QUERY EXAMPLES ---
