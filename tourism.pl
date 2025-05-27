@@ -453,7 +453,7 @@ entity(eiffel_tower, 'Tower', [attr(name, 'Eiffel Tower'), attr(place, p1), attr
 entity(colosseum, 'ArchaeologicalSite', [attr(name, 'Colosseum'), attr(place, p2), attr(estimatedCost, 18), attr(requiresTicket, true)]).
 entity(trevi_fountain, 'Fountain', [attr(name, 'Trevi Fountain'), attr(place, p2), attr(estimatedCost, 0), attr(requiresTicket, false)]).
 entity(city_park_paris, 'Park', [attr(name, 'Jardin du Luxembourg'), attr(place, p1), attr(estimatedCost, 0), attr(requiresTicket, false)]).
-
+entity(musee_orsay, 'Museum', [attr(name, 'Musee d Orsay'), attr(place, p1), attr(estimatedCost, 16)]).
 entity(trattoria_romana, 'Restaurant', [attr(name, 'Trattoria Romana'), attr(place, p2), attr(foodType, 'Generic'), attr(type, 'Italian'), attr(estimatedCost, 40)]).
 entity(le_bistro_parisien, 'Bistro', [attr(name, 'Le Bistro Parisien'), attr(place, p1), attr(estimatedCost, 60), attr(requiresTicket, false)]).
 entity(kyoto_ramen, 'Restaurant', [attr(name, 'Kyoto Ramen Shop'), attr(place, p3), attr(foodType, 'Generic'), attr(type, 'Japanese'), attr(estimatedCost, 15)]).
@@ -469,6 +469,8 @@ entity(ghp_cooking_class, 'CookingClass', [attr(name, 'French Pastry Class')]).
 entity(ghp_bike_tour, 'BikeTour', [attr(name, 'Paris City Bike Tour')]).
 entity(ryokan_onsen, 'Spa', [attr(name, 'Private Onsen Experience')]).
 entity(ryokan_tea_ceremony, 'HotelService', [attr(name, 'Traditional Tea Ceremony')]).
+entity(ghp_spa_service, 'Resort', [attr(name, 'Hotel Main Spa')]).
+entity(ryokan_onsen, 'Spa', [attr(name, 'Private Onsen Experience')]).
 
 entity(paris_main_station, 'Station', [attr(name, 'Gare du Nord'), attr(place, p1), attr(kind, 'Train')]).
 entity(rome_fco_airport, 'Station', [attr(name, 'Fiumicino Airport'), attr(place, p2), attr(kind, 'Airport')]).
@@ -485,7 +487,18 @@ entity(rome_weekend_bob, 'Visit', [attr(name, 'Bob Rome Weekend'), attr(startDat
 
 entity(pharmacy_central_paris, 'Pharmacy', [attr(name, 'Central Pharmacy Paris'), attr(place, p1), attr(phone, '+33 1 98 76 54 32')]).
 entity(bank_of_paris, 'Bank', [attr(name, 'Bank of Paris'), attr(place, p1)]).
+entity(bike1, 'Bike', []).
+entity(civic, 'Car', [attr(name, 'Civic'), attr(type, 'Sedan'), attr(availability, true), attr(consumption, '6L/100km'), attr(typeOfFuel, 'Electric')]).
 
+% Free museums in Paris
+entity(museum_modern_art, 'Museum', [attr(name, 'Museum of Modern Art'), attr(place, p1), attr(estimatedCost, 0), attr(requiresTicket, false)]).
+entity(museum_nature_paris, 'Museum', [attr(name, 'Natural History Museum'), attr(place, p1), attr(estimatedCost, 0), attr(requiresTicket, false)]).
+
+% Free museums in Rome
+entity(museum_roman_history, 'Museum', [attr(name, 'Museum of Roman History'), attr(place, p2), attr(estimatedCost, 0), attr(requiresTicket, false)]).
+
+% Free museums in Kyoto
+entity(museum_kyoto_art, 'Museum', [attr(name, 'Kyoto Art Museum'), attr(place, p3), attr(estimatedCost, 0), attr(requiresTicket, false)]).
 % -- Relationships (RelationshipName, SubjectID, ObjectID, ListOfAttributes) --
 rel(wasIn, mona_lisa, louvre, []).
 rel(wasIn, louvre, p1, []).
@@ -502,6 +515,7 @@ rel(wasIn, city_park_paris, p1, []).
 rel(wasIn, trevi_fountain, p2, []).
 rel(wasIn, pharmacy_central_paris, p1, []).
 rel(wasIn, bank_of_paris, p1, []).
+
 
 rel(wasIn, ghp_yoga_class, grand_hotel_paris, [attr(reason, 'hotel_amenity')]).
 rel(wasIn, ghp_spa_service, grand_hotel_paris, [attr(reason, 'hotel_amenity')]).
@@ -526,7 +540,7 @@ rel(belongsTo, trevi_fountain, col2, []).
 rel(makes, col1, paris_trip_alice, [attr(role, 'itinerary_basis')]).
 rel(makes, person1, paris_trip_alice, [attr(role, 'planner')]).
 rel(makes, person2, rome_weekend_bob, [attr(role, 'traveler')]).
-
+rel(makes, col2, rome_weekend_bob, []).
 rel(developed, artist_davinci, mona_lisa, [attr(role, 'painter')]).
 
 % rel(isA, p1, louvre, []). % This interpretation of isA(Place, POI) is tricky.
@@ -565,17 +579,25 @@ restaurant_food_type(RestaurantID, FoodType) :-
     entity(RestaurantID, 'Restaurant', Attributes), % Assumes direct type 'Restaurant'
     member(attr(foodType, FoodType), Attributes).
 
+% General rule to find hotels based on star rating and an operator
+% Operator can be '>=', '=<', '=', '<', '>'
+hotel_with_star_rating(HotelID, Operator, Value) :-
+    entity(HotelID, 'Hotel', Attributes),       
+    member(attr(stars, ActualStars), Attributes), 
+    number(ActualStars),                        
+    number(Value),                             
+    ComparisonGoal =.. [Operator, ActualStars, Value],
+    call(ComparisonGoal).
+
 % 4. Find luxury hotels (e.g., 4 stars or more)
+% Redefined using the general rule
 is_luxury_hotel(HotelID) :-
-    entity(HotelID, 'Hotel', Attributes), % Assumes direct type 'Hotel'
-    member(attr(stars, Stars), Attributes),
-    Stars >= 4.
+    hotel_with_star_rating(HotelID, >=, 4).
 
 % 5. Find budget hotels (e.g., 2 stars or less)
+% Redefined using the general rule
 is_budget_hotel(HotelID) :-
-    entity(HotelID, 'Hotel', Attributes), % Assumes direct type 'Hotel'
-    member(attr(stars, Stars), Attributes),
-    Stars =< 3.
+    hotel_with_star_rating(HotelID, =<, 2). % Using 2 as per typical budget definition
 
 % 6. Check if a POI requires a ticket
 poi_requires_ticket(PoiID) :-
@@ -599,13 +621,26 @@ poi_cheaper_than(PoiID, MaxCost) :-
     number(Cost), % Ensure Cost is a number
     Cost < MaxCost.
 
+% Defining types that, when found in a hotel, are hotel services 
+is_typical_hotel_amenity_type(Type) :-
+    member(Type, ['Spa', 'Resort', 'Yoga', 'Pilates', 'BikeTour', 'Restaurant', 'Bar']).
+
 % 9. Find hotels offering a specific type of hotel service (e.g., 'Yoga', 'Spa')
 hotel_offers_service_type(HotelID, ServiceEntityID, TargetServiceType) :-
     entity(HotelID, 'Hotel', _),
     rel(wasIn, ServiceEntityID, HotelID, _),
     entity(ServiceEntityID, ActualServiceEntityType, _),
-    is_subclass(ActualServiceEntityType, 'HotelService'), % Ensure it's a hotel service
-    is_subclass(ActualServiceEntityType, TargetServiceType). % Check if it's the target type or a subtype
+    (   is_subclass(ActualServiceEntityType, 'HotelService') % Formal check
+    ;   is_typical_hotel_amenity_type(ActualServiceEntityType) % Practical check
+    ),
+    is_subclass(ActualServiceEntityType, TargetServiceType).
+
+% Find all services offered by a luxury hotel
+luxury_hotel_all_services(LuxuryHotelID, ListOfServiceIDs) :-
+    is_luxury_hotel(LuxuryHotelID), % Use existing rule
+    findall(ServiceID,
+            hotel_offers_service_type(LuxuryHotelID, ServiceID, _AnyServiceType), % _AnyServiceType as wildcard
+            ListOfServiceIDs).
 
 % 10. Find POIs located at a specific place (using PlaceID from entity attribute)
 poi_at_place(PoiID, PlaceID) :-
@@ -647,9 +682,15 @@ is_road_vehicle(VehicleID) :-
 is_eco_friendly_transport(TransportID) :-
     entity(TransportID, Type, _),
     ( is_subclass(Type, 'Bike') ;
-      is_subclass(Type, 'Skateboard')
-      % Could add: get_attribute_value(TransportID, typeOfFuel, 'Electric') if data exists
+      is_subclass(Type, 'Skateboard');
+      get_attribute_value(TransportID, typeOfFuel, 'Electric')
     ).
+
+% Find POIs for a specific category and count them
+count_pois_for_category(CategoryName, Count) :-
+    category_info(_CatID, CategoryName), % Validate CategoryName and get CatID if needed
+    findall(PoiID, poi_for_category(PoiID, CategoryName), PoiList),
+    length(PoiList, Count).
 
 % 16. Find POIs relevant for a specific category (e.g., 'Art')
 poi_for_category(PoiID, CategoryName) :-
@@ -678,7 +719,11 @@ poi_in_person_visit(PersonID, PoiID) :-
 attraction_material(AttractionID, MaterialString) :-
     entity(AttractionID, 'Attraction', Attributes),
     member(attr(material, ActualMaterial), Attributes),
-    sub_string(ActualMaterial, _, _, _, MaterialString).
+    (   ground(MaterialString) -> 
+        sub_string(ActualMaterial, _, _, _, MaterialString)
+    ;   
+        MaterialString = ActualMaterial
+    ).
 
 % 20. Find attractions developed by a specific person (e.g. artist)
 attraction_by_developer(AttractionID, PersonID) :-
@@ -751,6 +796,130 @@ shop_of_type(ShopID, ShopType) :-
 station_serves_transport_kind(StationID, Kind) :-
     entity(StationID, 'Station', Attributes), % Assumes direct type 'Station'
     member(attr(kind, Kind), Attributes).
+
+% 31. Calculate the average cost of museums in a city
+average_museum_cost_in_city(CityName, AverageCost) :-
+    poi_in_city(MuseumID, CityName),          % Find POIs in the city
+    entity(MuseumID, 'Museum', _Attributes), % Check if it's a Museum
+    % Collect all valid costs
+    findall(Cost,
+            (   poi_in_city(MID, CityName),
+                entity(MID, 'Museum', _),
+                get_attribute_value(MID, estimatedCost, Cost),
+                number(Cost) % Ensure it's a number
+            ),
+            CostsList),
+    CostsList \= [], % Ensure there are museums with costs
+    sum_list(CostsList, TotalCost),
+    length(CostsList, NumberOfMuseums),
+    AverageCost is TotalCost / NumberOfMuseums.
+
+% For unique museums to avoid issues if poi_in_city yields duplicates for some reason
+average_museum_cost_in_city_unique(CityName, AverageCost) :-
+    setof(Cost, MID^CityPoi^( % Existential quantification for variables not in Cost
+                poi_in_city(MID, CityName),
+                entity(MID, 'Museum', _),
+                get_attribute_value(MID, estimatedCost, Cost),
+                number(Cost)
+            ), CostsList), % setof ensures unique costs if a museum had multiple cost entries (unlikely with current facts)
+                           % or unique museum IDs if we did setof(MID, ...) then got costs.
+                           % For this, let's assume unique museums from poi_in_city + entity check.
+    CostsList \= [],
+    sum_list(CostsList, TotalCost),
+    length(CostsList, NumberOfMuseums),
+    AverageCost is TotalCost / NumberOfMuseums.
+
+% Main rule for finding POIs with custom filters
+% Arguments:
+% - PoiID: Output variable for the found Point of Interest ID.
+% - DistrictFilterValue, TypeFilterValue, etc.: Values to filter by.
+% - EN_District, EN_Type, etc.: Boolean flags (true/false) to enable/disable filters.
+
+% Main rule for finding POIs with custom filters, revised to use existing helpers
+% Arguments:
+% - PoiID: Output variable for the found Point of Interest ID.
+% - CityFilterValue, TypeFilterValue, etc.: Values to filter by.
+% - EN_City, EN_Type, etc.: Boolean flags (true/false) to enable/disable filters.
+
+poi_with_custom_filters(
+    PoiID,
+    CityFilterValue, EntityTypeFilterValue, % Changed District to City, Type to EntityType
+    CategoryFilterValue, AgeFilterValue,    % Changed Activity to Category
+    TimeLimitFilterValue, MaxCostFilterValue, EntranceFeeFilterValue, % Clarified names
+    EN_City, EN_EntityType,
+    EN_Category, EN_Age, % Renamed EN_ActivityAge
+    EN_TimeLimit, EN_MaxCost, EN_EntranceFee % Clarified names
+) :-
+    % Start by finding any POI. Filters will narrow it down.
+    is_poi(PoiID), % Ensures PoiID is a Point of Interest (Rule 1)
+
+    % Apply City Filter (formerly District)
+    ( EN_City -> poi_in_city(PoiID, CityFilterValue) % Uses Rule 11
+    ; true
+    ),
+
+    % Apply Entity Type Filter
+    ( EN_EntityType ->
+        ( entity(PoiID, ActualType, _), % Get actual type of the POI
+          is_subclass(ActualType, EntityTypeFilterValue) % Check if it's a subclass of the desired type
+        )
+    ; true
+    ),
+
+    % Apply Category Filter (formerly Activity)
+    ( EN_Category -> poi_for_category(PoiID, CategoryFilterValue) % Uses Rule 16
+    ; true
+    ),
+
+    % Apply Age Filter (Still a placeholder, as no direct age rule exists)
+    ( EN_Age -> activity_for_age_placeholder(CategoryFilterValue, AgeFilterValue, PoiID)
+    ; true
+    ),
+
+    % Apply Time Limit Filter (Interpreting TIME as a maximum visit duration)
+    ( EN_TimeLimit ->
+        ( poi_has_time_limit(PoiID, ActualTimeLimit), % Uses Rule 25
+          ActualTimeLimit =< TimeLimitFilterValue % Check if actual limit is within desired max limit
+        )
+    ; true
+    ),
+
+    % Apply Max Cost Filter (Interpreting BUDGET as a maximum POI cost)
+    ( EN_MaxCost -> poi_cheaper_than(PoiID, MaxCostFilterValue) % Uses Rule 8 (checks Cost < MaxCostFilterValue)
+                                                                % If you need Cost =< MaxCost, use get_attribute_value and compare
+    ; true
+    ),
+    % Alternative for Max Cost if poi_cheaper_than (which is strictly <) is not suitable:
+    % ( EN_MaxCost ->
+    %     ( get_attribute_value(PoiID, estimatedCost, Cost),
+    %       ( Cost == default -> true ; % Or specific handling for default
+    %         number(Cost) -> Cost =< MaxCostFilterValue
+    %       )
+    %     )
+    % ; true
+    % ),
+
+
+    % Apply Entrance Fee Filter
+    ( EN_EntranceFee ->
+        ( (EntranceFeeFilterValue == free, poi_is_free(PoiID)) % Uses Rule 7
+        ; (EntranceFeeFilterValue == paid, poi_requires_ticket(PoiID)) % Uses Rule 6
+        ; (number(EntranceFeeFilterValue), % If it's a max numeric fee
+             get_attribute_value(PoiID, estimatedCost, Cost),
+             ( Cost == default -> true ; % If no cost, assume it fits (or could fail if strict)
+               number(Cost) -> Cost =< EntranceFeeFilterValue
+             )
+          )
+        ; (\+ member(EntranceFeeFilterValue, [free, paid]), \+ number(EntranceFeeFilterValue), true) % If value is not free/paid/number, ignore this specific sub-filter
+        )
+    ; true
+    ).
+
+% Placeholder for age filter if you were to develop it
+activity_for_age_placeholder(_Category, _Age, _PoiID) :-
+    % Logic to check if PoiID (related to _Category) is suitable for _Age
+    % Example: entity(PoiID, _, Attributes), member(attr(minAge, Min), Attributes), Age >= Min.
+    true. % Currently always true
 
 % --- SEARCH RULES ---
 
@@ -874,27 +1043,6 @@ find_visits_by_planner_and_budget(PersonID, MinBudget, MaxBudget, VisitID) :-
     member(attr(budget, Budget), Attributes),
     Budget >= MinBudget,
     Budget =< MaxBudget.
-
-% Implementation of DFS to find all subtypes of a given class
-all_subtypes_of(ParentClass, Subtype) :-
-    dfs_find_all_subtypes(ParentClass, Subtype).
-
-% DFS to find all descendants (subtypes) of a class
-dfs_find_all_subtypes(Class, Descendant) :-
-    dfs_subtypes_recursive(Class, [], Descendant).
-
-% Recursive DFS implementation
-dfs_subtypes_recursive(Node, Visited, Descendant) :-
-    direct_children(Node, Children),
-    member(Child, Children),
-    \+ member(Child, Visited), % Avoid cycles
-    (   Descendant = Child
-    ;   dfs_subtypes_recursive(Child, [Child|Visited], Descendant)
-    ).
-
-% Helper: Find direct children of a class
-direct_children(Parent, Children) :-
-    findall(Child, subclass_of(Child, Parent), Children).
 
 
 % --- QUERY EXAMPLES ---
@@ -1135,6 +1283,18 @@ direct_children(Parent, Children) :-
 
 ?- find_visits_by_planner_and_budget(person1, 1500, 2500, VisitID), get_entity_display_name(VisitID, Name).
 % Expected: VisitID = paris_trip_alice, Name = 'Alice Paris Trip'.
+
+To find all Museums in Paris that are free:
+
+poi_with_custom_filters(
+       PoiID,
+       'Paris City Center', 'Museum',  % City, EntityType
+       _, _,                            % Category, Age (disabled)
+       _, 17, _,                        % TimeLimit (disabled), MaxCost = 17, EntranceFee (disabled)
+       true, true,                       % Enable City, Enable EntityType
+       false, false,                     % Disable Category, Disable Age
+       false, true, false                % Disable TimeLimit, Enable MaxCost, Disable EntranceFee
+   ), get_entity_display_name(PoiID, Name).
 
 */
 % --- END OF FILE ---
