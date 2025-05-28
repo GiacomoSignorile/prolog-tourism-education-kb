@@ -1,29 +1,45 @@
 :- use_module(library(lists)).
+:- use_module(library(apply)). % For maplist
 
-:- table content_covers_skill/2.
-
-% --- Discontiguous declarations ---
+% --- Discontiguous Declarations ---
+:- discontiguous inverse_of/2.
 :- discontiguous subclass_of/2.
 :- discontiguous entity/3.
 :- discontiguous rel/4.
+
+% --- DYNAMIC PREDICATE DECLARATION
+:- dynamic strong_project_candidate/3. % strong_project_candidate(User, Project, Skill)
+
+% Specific Info Predicates
 :- discontiguous user_info/2.
-:- discontiguous container_info/2.
+:- discontiguous container_info/2. % For Course, Module, Lesson, Workshop, AssessmentContainer
 :- discontiguous assessment_tool_info/2.
-:- discontiguous category_info/2. % For skills and topics
+:- discontiguous category_info/2.    % For Skill, Topic
 :- discontiguous event_info/2.
 :- discontiguous accomplishment_info/2.
 :- discontiguous project_info/2.
-:- discontiguous is_subclass_normal/2.
 
-% --- SCHEMA: Entity Hierarchy ---
-% Using 'DomainEntity' as the root class name
+% Schema Predicates (Entity Attribute Schemas & Relationship Schemas)
+% These are defined by facts like 'User'([...]), 'partOf'([...],[...]).
+% We need to ensure Prolog knows they can be defined piece-meal if they are spread out,
+% or ensure they are grouped. For simplicity, we'll assume they are grouped in the schema section.
+% If they were spread, we'd need :- discontiguous 'User'/1, 'partOf'/2, etc.
+
+:- discontiguous is_subclass_normal/2. % From your existing code
+:- discontiguous is_subclass_inverse/2. % New from tourism example
+:- table content_covers_skill/2.      % From your existing code
+
+% --- SCHEMA DEFINITIONS ---
+
+% -- Entities Hierarchy ('subclass_of/2') --
 subclass_of('User', 'DomainEntity').
 subclass_of('Container', 'DomainEntity').
 subclass_of('AssessmentTool', 'DomainEntity').
-subclass_of('Category', 'DomainEntity'). % Broad category for Skills, Topics
+subclass_of('Category', 'DomainEntity').
 subclass_of('Event', 'DomainEntity').
 subclass_of('Accomplishment', 'DomainEntity').
 subclass_of('Project', 'DomainEntity').
+% Implicit: 'DomainEntity' is the root. If you had subclass_of('DomainEntity', 'Entity'), 'Entity' would be root.
 
 % Subclasses of Container
 subclass_of('Course', 'Container').
@@ -32,65 +48,275 @@ subclass_of('Lesson', 'Container').
 subclass_of('Workshop', 'Container').
 subclass_of('AssessmentContainer', 'Container'). % A container that is also an assessment
 
-% Subclasses of Category (more specific, if needed, or keep general)
+% Subclasses of Category
 subclass_of('Skill', 'Category').
 subclass_of('Topic', 'Category').
 
-% --- SCHEMA: Relationships ---
-% inverse_of(RelationName, InverseRelationName).
+% -- Entity Attribute Schemas ('EntityName'([attributeList])) --
+% These define the *direct* attributes of each entity type.
+% 'name' is often handled by xxx_info/2 and also as attr(name,...) in entity/3.
+% We list other characteristic attributes here.
+'DomainEntity'([]). % Root entity, might have no direct attributes itself.
+'User'([name]). % name is primary, other attributes could be role, status etc.
+'Container'([name, language, difficulty]).
+'Course'([]). % Inherits from Container, may have course-specific attrs like credits
+'Module'([]). % Inherits from Container
+'Lesson'([]). % Inherits from Container
+'Workshop'([]). % Inherits from Container
+'AssessmentContainer'([]). % Inherits from Container, is also an assessment
+'AssessmentTool'([name, language, version]).
+'Category'([name]). % For Skill, Topic
+'Skill'([]). % Inherits from Category
+'Topic'([]). % Inherits from Category
+'Event'([name, startDate, endDate]). % Example attributes for an event
+'Accomplishment'([name]).
+'Project'([name, requiredSkill]). % requiredSkill is an attribute of the project entity
+
+% -- Relationship Inverse Definitions ('inverse_of/2') --
 inverse_of(partOf, hasPart).
 inverse_of(instanceOf, hasInstance).
 inverse_of(involvedInEvent, eventHasParticipant).
-inverse_of(hasSkill, skillOfUser). % User hasSkill Skill vs Skill skillOfUser User
+inverse_of(hasSkill, skillOfUser).
 inverse_of(assessesSkill, skillAssessedBy).
 inverse_of(evolvesTo, evolvesFrom).
 inverse_of(requires, requiredBy).
 inverse_of(ownsAccomplishment, accomplishmentOwnedBy).
 inverse_of(awardedFor, awardsAccomplishment).
-inverse_of(developed, developedBy). % User developed Content vs Content developedBy User
+inverse_of(developed, developedBy).
 inverse_of(interestedInProject, projectHasInterestedUser).
 inverse_of(rated, ratingOf).
 
-% 'RelationName'([DomainClass-RangeClass, ...], [attributeOfRelationship1, ...]).
-'partOf'(['Container'-'Container', 'AssessmentContainer'-'Container', 'Lesson'-'Module', 'Module'-'Course'], []). % Component-Parent
-'hasPart'(['Container'-'Container', 'Container'-'AssessmentContainer', 'Module'-'Lesson', 'Course'-'Module'], []). % Parent-Component
-
-'instanceOf'(['Event'-'Container'], []). % Event is instanceOf Container
-'hasInstance'(['Container'-'Event'], []). % Container hasInstance Event
-
-'involvedInEvent'(['User'-'Event'], [role, startDate, endDate]). % User involvedInEvent Event
-'eventHasParticipant'(['Event'-'User'], [role, startDate, endDate]). % Event eventHasParticipant User
-
-'hasSkill'(['User'-'Category'], [level]). % User hasSkill Category (Skill/Topic)
-'skillOfUser'(['Category'-'User'], [level]). % Category skillOfUser User
-
-'assessesSkill'(['Container'-'Category'], [scale]). % AssessmentContainer assessesSkill Category
-'skillAssessedBy'(['Category'-'Container'], [scale]). % Category skillAssessedBy AssessmentContainer
-
-'evolvesTo'(['AssessmentTool'-'AssessmentTool', 'Container'-'Container'], []). % Old evolvesTo New
-'evolvesFrom'(['AssessmentTool'-'AssessmentTool', 'Container'-'Container'], []). % New evolvesFrom Old
-
-'requires'(['Container'-'Container', 'Container'-'AssessmentTool'], []). % Container requires Prerequisite
-'requiredBy'(['Container'-'Container', 'AssessmentTool'-'Container'], []). % Prerequisite requiredBy Container
-
+% -- Relationship Signature Schemas ('RelName'([Domain-RangePairs], [attributeList])) --
+'partOf'(['Container'-'Container', 'AssessmentContainer'-'Container', 'Lesson'-'Module', 'Module'-'Course'], []).
+'hasPart'(['Container'-'Container', 'Container'-'AssessmentContainer', 'Module'-'Lesson', 'Course'-'Module'], []).
+'instanceOf'(['Event'-'Container'], []).
+'hasInstance'(['Container'-'Event'], []).
+'involvedInEvent'(['User'-'Event'], [role, startDate, endDate]).
+'eventHasParticipant'(['Event'-'User'], [role, startDate, endDate]).
+'hasSkill'(['User'-'Category'], [level]).
+'skillOfUser'(['Category'-'User'], [level]).
+'assessesSkill'(['Container'-'Category'], [scale]).
+'skillAssessedBy'(['Category'-'Container'], [scale]).
+'evolvesTo'(['AssessmentTool'-'AssessmentTool', 'Container'-'Container'], []).
+'evolvesFrom'(['AssessmentTool'-'AssessmentTool', 'Container'-'Container'], []).
+'requires'(['Container'-'Container', 'Container'-'AssessmentTool'], []).
+'requiredBy'(['Container'-'Container', 'AssessmentTool'-'Container'], []).
 'ownsAccomplishment'(['User'-'Accomplishment'], [score, issueDate, expiryDate, isValid]).
 'accomplishmentOwnedBy'(['Accomplishment'-'User'], [score, issueDate, expiryDate, isValid]).
-
 'awardedFor'(['Accomplishment'-'Container'], []).
 'awardsAccomplishment'(['Container'-'Accomplishment'], []).
-
-'developed'(['User'-'Container', 'User'-'AssessmentTool'], [role, date, version]). % User developed Content
-'developedBy'(['Container'-'User', 'AssessmentTool'-'User'], [role, date, version]). % Content developedBy User
-
+'developed'(['User'-'Container', 'User'-'AssessmentTool'], [role, date, version]).
+'developedBy'(['Container'-'User', 'AssessmentTool'-'User'], [role, date, version]).
 'interestedInProject'(['User'-'Project'], []).
 'projectHasInterestedUser'(['Project'-'User'], []).
+'rated'(['User'-'Container'], [ratingValue]).
+'ratingOf'(['Container'-'User'], [ratingValue]).
 
-'rated'(['User'-'Container'], [ratingValue]). % User rated Content
-'ratingOf'(['Container'-'User'], [ratingValue]). % Content ratingOf User
+
+% --- GENERIC SCHEMA UTILITY RULES  ---
+
+% is_subclass(?Subclass, ?Superclass)
+is_subclass(Class, Class) :- schema_entity_definition(Class, _), !. % Reflexivity: A class is a subclass of itself.
+is_subclass(Subclass, Superclass) :-
+  is_subclass_normal(Subclass, Superclass).
+% is_subclass_inverse part from tourism example can be complex if not all relationships are classes.
+% For now, keeping the simpler is_subclass structure that worked. If needed, can add is_subclass_inverse.
+
+is_subclass_normal(Class, Class) :- schema_entity_definition(Class, _), !. % Reflexivity for normal path
+is_subclass_normal(Subclass, Superclass) :-
+  subclass_of(Subclass, Superclass).
+is_subclass_normal(Subclass, Superclass) :-
+  subclass_of(Subclass, Middleclass),
+  is_subclass_normal(Middleclass, Superclass).
+
+% schema_entity_definition(ClassName, AttributeList)
+schema_entity_definition(ClassName, AttributeList) :-
+    atom(ClassName), % Good to keep this check
+    defined_entity_schema(ClassName, AttributeList).
+
+% The dispatcher predicate
+defined_entity_schema('User', Attributes) :- 'User'(Attributes).
+defined_entity_schema('Container', Attributes) :- 'Container'(Attributes).
+defined_entity_schema('Course', Attributes) :- 'Course'(Attributes).
+defined_entity_schema('Module', Attributes) :- 'Module'(Attributes).
+defined_entity_schema('Lesson', Attributes) :- 'Lesson'(Attributes).
+defined_entity_schema('Workshop', Attributes) :- 'Workshop'(Attributes).
+defined_entity_schema('AssessmentContainer', Attributes) :- 'AssessmentContainer'(Attributes).
+defined_entity_schema('AssessmentTool', Attributes) :- 'AssessmentTool'(Attributes).
+defined_entity_schema('Category', Attributes) :- 'Category'(Attributes).
+defined_entity_schema('Skill', Attributes) :- 'Skill'(Attributes).
+defined_entity_schema('Topic', Attributes) :- 'Topic'(Attributes).
+defined_entity_schema('Event', Attributes) :- 'Event'(Attributes).
+defined_entity_schema('Accomplishment', Attributes) :- 'Accomplishment'(Attributes).
+defined_entity_schema('Project', Attributes) :- 'Project'(Attributes).
+defined_entity_schema('DomainEntity', Attributes) :- 'DomainEntity'(Attributes). % Make sure to include all of them
+
+% If schema_relationship_definition/3 also causes issues, do the same:
+schema_relationship_definition(RelName, SubjObjList, AttrList) :-
+    atom(RelName), % Good check
+    defined_relationship_schema(RelName, SubjObjList, AttrList).
+
+% The dispatcher predicate for relationship schemas
+% WARNING: Readability of Dispatchers, For very large schemas, dispatchers can become long.
+defined_relationship_schema('partOf', DomainRangePairs, Attributes) :-
+    'partOf'(DomainRangePairs, Attributes).
+defined_relationship_schema('hasPart', DomainRangePairs, Attributes) :-
+    'hasPart'(DomainRangePairs, Attributes).
+defined_relationship_schema('instanceOf', DomainRangePairs, Attributes) :-
+    'instanceOf'(DomainRangePairs, Attributes).
+defined_relationship_schema('hasInstance', DomainRangePairs, Attributes) :-
+    'hasInstance'(DomainRangePairs, Attributes).
+defined_relationship_schema('involvedInEvent', DomainRangePairs, Attributes) :-
+    'involvedInEvent'(DomainRangePairs, Attributes).
+defined_relationship_schema('eventHasParticipant', DomainRangePairs, Attributes) :-
+    'eventHasParticipant'(DomainRangePairs, Attributes).
+defined_relationship_schema('hasSkill', DomainRangePairs, Attributes) :-
+    'hasSkill'(DomainRangePairs, Attributes).
+defined_relationship_schema('skillOfUser', DomainRangePairs, Attributes) :-
+    'skillOfUser'(DomainRangePairs, Attributes).
+defined_relationship_schema('assessesSkill', DomainRangePairs, Attributes) :-
+    'assessesSkill'(DomainRangePairs, Attributes).
+defined_relationship_schema('skillAssessedBy', DomainRangePairs, Attributes) :-
+    'skillAssessedBy'(DomainRangePairs, Attributes).
+defined_relationship_schema('evolvesTo', DomainRangePairs, Attributes) :-
+    'evolvesTo'(DomainRangePairs, Attributes).
+defined_relationship_schema('evolvesFrom', DomainRangePairs, Attributes) :-
+    'evolvesFrom'(DomainRangePairs, Attributes).
+defined_relationship_schema('requires', DomainRangePairs, Attributes) :-
+    'requires'(DomainRangePairs, Attributes).
+defined_relationship_schema('requiredBy', DomainRangePairs, Attributes) :-
+    'requiredBy'(DomainRangePairs, Attributes).
+defined_relationship_schema('ownsAccomplishment', DomainRangePairs, Attributes) :-
+    'ownsAccomplishment'(DomainRangePairs, Attributes).
+defined_relationship_schema('accomplishmentOwnedBy', DomainRangePairs, Attributes) :-
+    'accomplishmentOwnedBy'(DomainRangePairs, Attributes).
+defined_relationship_schema('awardedFor', DomainRangePairs, Attributes) :- % Continuing from here
+    'awardedFor'(DomainRangePairs, Attributes).
+defined_relationship_schema('awardsAccomplishment', DomainRangePairs, Attributes) :-
+    'awardsAccomplishment'(DomainRangePairs, Attributes).
+defined_relationship_schema('developed', DomainRangePairs, Attributes) :-
+    'developed'(DomainRangePairs, Attributes).
+defined_relationship_schema('developedBy', DomainRangePairs, Attributes) :-
+    'developedBy'(DomainRangePairs, Attributes).
+defined_relationship_schema('interestedInProject', DomainRangePairs, Attributes) :-
+    'interestedInProject'(DomainRangePairs, Attributes).
+defined_relationship_schema('projectHasInterestedUser', DomainRangePairs, Attributes) :-
+    'projectHasInterestedUser'(DomainRangePairs, Attributes).
+defined_relationship_schema('rated', DomainRangePairs, Attributes) :-
+    'rated'(DomainRangePairs, Attributes).
+defined_relationship_schema('ratingOf', DomainRangePairs, Attributes) :-
+    'ratingOf'(DomainRangePairs, Attributes).
+
+% invert_relationship(+RelationshipName, -InvertedRelationshipClause)
+% Returns the schema clause (Name, Refs, Attrs) of the inverse.
+invert_relationship(RelationshipName, InvertedRelationshipClause) :-
+  inverse_of(InvertedRelationshipName, RelationshipName),
+  schema_relationship_definition(RelationshipName, SubjObjList, AttributeList),
+  !,
+  invert_subj_obj(SubjObjList, InvertedSubjObjList),
+  InvertedRelationshipClause =.. [InvertedRelationshipName, InvertedSubjObjList, AttributeList].
+invert_relationship(InvertedRelationshipName, RelationshipClause) :-
+  inverse_of(InvertedRelationshipName, RelationshipName),
+  schema_relationship_definition(RelationshipName, SubjObjList, AttributeList),
+  !,
+  RelationshipClause =.. [RelationshipName, SubjObjList, AttributeList].
+invert_relationship(RelationshipName, RelationshipClause) :- % No inverse defined
+  \+ inverse_of(_, RelationshipName),
+  \+ inverse_of(RelationshipName, _),
+  schema_relationship_definition(RelationshipName, SubjObjList, AttributeList),
+  RelationshipClause =.. [RelationshipName, SubjObjList, AttributeList].
+
+invert_subj_obj([], []).
+invert_subj_obj([Subject-Object|T1], [Object-Subject|T2]) :-
+  invert_subj_obj(T1, T2).
+
+% gather_attributes(+ClassName, -AllAttributes)
+% Gathers attributes from ClassName and all its superclasses.
+gather_attributes(ClassName, AllAttributes) :-
+    ( atom(ClassName) -> NameAtom = ClassName ; ClassName =.. [NameAtom|_] ), % Handle if ClassName is term or atom
+    (   schema_entity_definition(NameAtom, DirectAttributes) -> % It's an entity schema fact
+        findall(SuperCName, is_subclass(NameAtom, SuperCName), ParentsListWithSelf),
+        remove_self(NameAtom, ParentsListWithSelf, ParentsList),
+        maplist(gather_direct_entity_attributes, ParentsList, ParentAttributesLists),
+        flatten([DirectAttributes | ParentAttributesLists], FlatAttributes), % Put direct ones first
+        list_to_set(FlatAttributes, AllAttributes)
+    ;   schema_relationship_definition(NameAtom, _, DirectAttributes) -> % It's a relationship schema fact
+        findall(SuperCName, is_subclass(NameAtom, SuperCName), ParentsListWithSelf), % Assuming rels can have hierarchy
+        remove_self(NameAtom, ParentsListWithSelf, ParentsList),
+        maplist(gather_direct_relationship_attributes, ParentsList, ParentAttributesLists),
+        flatten([DirectAttributes | ParentAttributesLists], FlatAttributes),
+        list_to_set(FlatAttributes, AllAttributes)
+    ;   inverse_of(NameAtom, BaseRel) -> % It's an inverse relationship name
+        gather_attributes(BaseRel, AllAttributes)
+    ;   AllAttributes = [] % Not a defined entity or relationship, or no attributes
+    ).
+
+gather_direct_entity_attributes(ClassName, Attributes) :-
+    schema_entity_definition(ClassName, Attributes), !.
+gather_direct_entity_attributes(_, []). % If not defined or no direct attributes
+
+gather_direct_relationship_attributes(RelName, Attributes) :-
+    schema_relationship_definition(RelName, _Refs, Attributes), !.
+gather_direct_relationship_attributes(_, []).
+
+remove_self(_, [], []).
+remove_self(Self, [H|T1], T2) :- ( Self == H -> remove_self(Self, T1, T2) ; T2 = [H|R], remove_self(Self, T1, R) ).
 
 
-% --- FACTS: Specific Info Predicates (for core identification) ---
-user_info(u1, 'Alice').
+% gather_references and its helpers would be similar if needed for relationships.
+% For now, focusing on attribute gathering.
+
+% --- Your Existing Generic Helper Rules ---
+% get_attribute_value/3 (still useful for direct access in your rules)
+get_attribute_value(EntityID, AttrName, Value) :-
+    entity(EntityID, _, Attributes),
+    member(attr(AttrName, Value), Attributes).
+get_attribute_value(EntityID, AttrName, default) :-
+    entity(EntityID, _, _),
+    \+ (entity(EntityID, _, Attributes), member(attr(AttrName, _), Attributes)).
+
+transitively_part_of(Component, Container) :- rel(partOf, Component, Container, _).
+transitively_part_of(Component, Container) :-
+    rel(partOf, Component, Intermediate, _),
+    transitively_part_of(Intermediate, Container).
+
+% content_covers_skill and ccs_check (already tabled)
+content_covers_skill(ContainerID, SkillID) :- % ... (your existing definition)
+    entity(ContainerID, ContainerType, _),
+    is_subclass(ContainerType, 'Container'),
+    entity(SkillID, SkillCatType, _),
+    is_subclass(SkillCatType, 'Category'),
+    ccs_check(ContainerID, SkillID, ContainerType).
+
+ccs_check(ContainerID, SkillID, _ContainerType) :- % Rule CCS1
+    rel(assessesSkill, ContainerID, SkillID, _).
+ccs_check(ContainerID, SkillID, _ContainerType) :- % Rule CCS2
+    rel(partOf, AssessmentPartID, ContainerID, _),
+    entity(AssessmentPartID, PartType, _),
+    is_subclass(PartType, 'AssessmentContainer'),
+    rel(assessesSkill, AssessmentPartID, SkillID, _).
+ccs_check(ContainerID, SkillID, 'Lesson') :- % Rule CCS3
+    rel(partOf, ContainerID, ParentModuleID, _),
+    entity(ParentModuleID, 'Module', _),
+    content_covers_skill(ParentModuleID, SkillID).
+ccs_check(ContainerID, SkillID, ContainerType) :- % Rule CCS4
+    ContainerType \= 'Lesson',
+    transitively_part_of(SubPartID, ContainerID),
+    \+ (SubPartID == ContainerID),
+    content_covers_skill(SubPartID, SkillID).
+
+learner_mastered_container(UserID, ContainerID) :- % ... (your existing definition)
+    entity(UserID, 'User', _),
+    entity(ContainerID, ContainerType, _), is_subclass(ContainerType, 'Container'),
+    rel(ownsAccomplishment, UserID, AccID, Attributes),
+    member(attr(isValid, true), Attributes),
+    entity(AccID, 'Accomplishment', _),
+    rel(awardedFor, AccID, ContainerID, _).
+
+% --- INSTANCE FACTS ---
+
+% -- Specific Info Predicates --
+user_info(u1, 'Alice'). % ... all user_info facts ...
 user_info(u2, 'Bob_Teacher').
 user_info(u3, 'Charlie_Learner').
 user_info(u4, 'David_Mentor').
@@ -98,7 +324,7 @@ user_info(u5, 'Eve_Student').
 user_info(u6, 'Fiona_Expert').
 user_info(u7, 'Charles_Teacher').
 
-container_info(cos101, 'AI Course').
+container_info(cos101, 'AI Course'). % ... all container_info facts ...
 container_info(mod_cpp, 'C++ Module').
 container_info(mod_prolog, 'Prolog Module').
 container_info(mod_search, 'Search Algos Module').
@@ -107,31 +333,32 @@ container_info(asm_prolog_quiz, 'Prolog Quiz').
 container_info(workshop_advanced_prolog, 'Advanced Prolog Workshop').
 container_info(mod_prolog_2005, 'Prolog Lesson 2005/06').
 
-assessment_tool_info(qn1, 'Prolog Concepts QNR').
+assessment_tool_info(qn1, 'Prolog Concepts QNR'). % ... all assessment_tool_info facts ...
 assessment_tool_info(qn2, 'Search Algo QNR').
 assessment_tool_info(qn2_old, 'Search Algo QNR Old').
 
-category_info(skill_prolog, 'Prolog Programming').
+category_info(skill_prolog, 'Prolog Programming'). % ... all category_info facts ...
 category_info(skill_search, 'Search Algorithms').
 category_info(skill_recursion, 'Recursion').
 category_info(skill_expert_prolog, 'Expert Prolog Techniques').
 category_info(topic_ai_ethics, 'AI Ethics').
 
-event_info(evt_prolog_les, 'Prolog Lesson Event').
+event_info(evt_prolog_les, 'Prolog Lesson Event'). % ... all event_info facts ...
 event_info(evt_search_mod, 'Search Module Event').
 event_info(evt_ai_course_active, 'AI Course Active Instance').
 event_info(evt_adv_prolog_ws, 'Advanced Prolog Workshop Event').
 
-accomplishment_info(ac_prolog_module_cert, 'Prolog Module Certificate').
+accomplishment_info(ac_prolog_module_cert, 'Prolog Module Certificate'). % ... all accomplishment_info facts ...
 accomplishment_info(ac_search_module_pass, 'Search Module Pass').
 accomplishment_info(ac_expert_prolog_badge, 'Expert Prolog Badge').
+accomplishment_info(ac_adv_prolog_ws_cert, 'Advanced Prolog Workshop Certificate').
+accomplishment_info(ac_basic_mod_prolog, 'Basic Prolog Module Pass').
 
-project_info(p1, 'AI Chatbot').
+project_info(p1, 'AI Chatbot'). % ... all project_info facts ...
 project_info(p2, 'Game Pathfinding').
 
-% --- FACTS: Generic Entity Facts ---
-% entity(EntityID, EntityType, [ListOfAttributes])
-entity(u1, 'User', [attr(name, 'Alice')]).
+% -- Generic Entity Facts ('entity/3') --
+entity(u1, 'User', [attr(name, 'Alice')]). % ... all entity facts ...
 entity(u2, 'User', [attr(name, 'Bob_Teacher')]).
 entity(u3, 'User', [attr(name, 'Charlie_Learner')]).
 entity(u4, 'User', [attr(name, 'David_Mentor')]).
@@ -166,14 +393,14 @@ entity(evt_adv_prolog_ws, 'Event', [attr(name, 'Advanced Prolog Workshop Event')
 entity(ac_prolog_module_cert, 'Accomplishment', [attr(name, 'Prolog Module Certificate')]).
 entity(ac_search_module_pass, 'Accomplishment', [attr(name, 'Search Module Pass')]).
 entity(ac_expert_prolog_badge, 'Accomplishment', [attr(name, 'Expert Prolog Badge')]).
+entity(ac_adv_prolog_ws_cert, 'Accomplishment', [attr(name, 'Advanced Prolog Workshop Certificate')]).
+entity(ac_basic_mod_prolog, 'Accomplishment', [attr(name, 'Basic Prolog Module Pass')]).
 
 entity(p1, 'Project', [attr(name, 'AI Chatbot'), attr(requiredSkill, skill_prolog)]).
 entity(p2, 'Project', [attr(name, 'Game Pathfinding'), attr(requiredSkill, skill_search)]).
 
-
-% --- FACTS: Generic Relationship Facts ---
-% rel(RelationName, SubjectID, ObjectID, [ListOfAttributes])
-rel(partOf, mod_prolog, cos101, []).
+% -- Generic Relationship Facts ('rel/4') --
+rel(partOf, mod_prolog, cos101, []). % ... all rel facts ...
 rel(partOf, mod_search, cos101, []).
 rel(partOf, les_recursion, mod_prolog, []).
 rel(partOf, asm_prolog_quiz, mod_prolog, []).
@@ -207,23 +434,26 @@ rel(hasSkill, u7, skill_search, [attr(level, 8)]).
 
 rel(assessesSkill, asm_prolog_quiz, skill_prolog, []).
 rel(assessesSkill, asm_prolog_quiz, skill_recursion, []).
-rel(assessesSkill, workshop_advanced_prolog, skill_expert_prolog, []). % Workshop is an AssessmentContainer here
-rel(assessesSkill, mod_search, skill_search, [attr(scale, 'pass_fail_scale')]). % Module itself assesses
+rel(assessesSkill, workshop_advanced_prolog, skill_expert_prolog, []).
+rel(assessesSkill, mod_search, skill_search, [attr(scale, 'pass_fail_scale')]).
 
-rel(evolvesTo, qn2_old, qn2, []). % qn2_old evolvesTo qn2
-
-rel(requires, mod_search, qn2_old, []). % mod_search requires assessment_tool qn2_old
+rel(evolvesTo, qn2_old, qn2, []).
+rel(requires, mod_search, qn2_old, []).
 rel(requires, cos101, mod_prolog, []).
 rel(requires, workshop_advanced_prolog, mod_prolog, []).
 
 rel(ownsAccomplishment, u3, ac_prolog_module_cert, [attr(score, 85), attr(issueDate, '2023-01-01'), attr(expiryDate, '2023-02-28'), attr(isValid, true)]).
 rel(ownsAccomplishment, u4, ac_prolog_module_cert, [attr(score, 95), attr(issueDate, '2022-01-01'), attr(expiryDate, '2022-02-28'), attr(isValid, true)]).
-rel(ownsAccomplishment, u6, ac_expert_prolog_badge, [attr(issueDate, '2023-05-01'), attr(isValid, true)]). % score, expiryDate can be absent
+rel(ownsAccomplishment, u6, ac_expert_prolog_badge, [attr(issueDate, '2023-05-01'), attr(isValid, true)]).
 rel(ownsAccomplishment, u7, ac_search_module_pass, [attr(issueDate, '2024-05-10'), attr(isValid, true)]).
+rel(ownsAccomplishment, u3, ac_adv_prolog_ws_cert, [attr(score, 95), attr(issueDate, '2023-06-01'), attr(isValid, true)]).
+rel(ownsAccomplishment, u5, ac_basic_mod_prolog, [attr(score, 80), attr(issueDate, '2023-01-10'), attr(isValid, true)]).
 
 rel(awardedFor, ac_prolog_module_cert, mod_prolog, []).
 rel(awardedFor, ac_search_module_pass, mod_search, []).
 rel(awardedFor, ac_expert_prolog_badge, workshop_advanced_prolog, []).
+rel(awardedFor, ac_adv_prolog_ws_cert, workshop_advanced_prolog, []).
+rel(awardedFor, ac_basic_mod_prolog, mod_prolog, []).
 
 rel(developed, u4, mod_prolog, [attr(role, 'Creator')]).
 rel(developed, u6, workshop_advanced_prolog, [attr(role, 'Creator')]).
@@ -239,360 +469,364 @@ rel(rated, u5, mod_prolog, [attr(ratingValue, 4)]).
 rel(rated, u4, workshop_advanced_prolog, [attr(ratingValue, 5)]).
 
 
-% --- GENERIC HELPER RULES ---
-is_subclass(Subclass, Superclass) :-
-  is_subclass_normal(Subclass, Superclass).
+% Rule 1: Identify if a user is a learner in any event.
+% A user is considered a learner if they have the 'Learner' role in any event they are involved in.
+is_learner(User) :-
+    entity(User, 'User', _), % Ensure User is a User entity
+    rel(involvedInEvent, User, _, Attributes),
+    member(attr(role, 'Learner'), Attributes).
 
-% Single, corrected definition of is_subclass_normal/2 (reflexive)
-is_subclass_normal(Class, Class).
-is_subclass_normal(Subclass, Superclass) :-
-  subclass_of(Subclass, Superclass).
-is_subclass_normal(Subclass, Superclass) :-
-  subclass_of(Subclass, Middleclass),
-  is_subclass_normal(Middleclass, Superclass).
+% Rule 2: Identify if a user is a teacher or speaker in any event.
+% A user is considered a teacher if they have the 'Teacher' or 'Speaker' role in any event.
+is_teacher(User) :-
+    entity(User, 'User', _),
+    rel(involvedInEvent, User, _, Attributes),
+    ( member(attr(role, 'Teacher'), Attributes) ; member(attr(role, 'Speaker'), Attributes) ).
 
-get_attribute_value(EntityID, AttrName, Value) :-
-    entity(EntityID, _, Attributes),
-    member(attr(AttrName, Value), Attributes).
-get_attribute_value(EntityID, AttrName, default) :-
-    entity(EntityID, _, _),
-    \+ (entity(EntityID, _, Attributes), member(attr(AttrName, _), Attributes)).
+% Rule 3: Identify if a user is a content developer.
+% A user is a content developer if they have developed any Container or AssessmentTool.
+is_content_developer(User) :-
+    entity(User, 'User', _),
+    rel(developed, User, DevelopedThing, _),
+    ( entity(DevelopedThing, Type, _), is_subclass(Type, 'Container') ;
+      entity(DevelopedThing, Type, _), is_subclass(Type, 'AssessmentTool') ).
 
-% Helper: transitively_part_of(ComponentID, ContainerID)
-transitively_part_of(Component, Container) :- rel(partOf, Component, Container, _).
-transitively_part_of(Component, Container) :-
-    rel(partOf, Component, Intermediate, _),
-    transitively_part_of(Intermediate, Container).
+% Rule 4: Get the skill level of a user for a specific skill.
+% Retrieves the level attribute from the hasSkill relationship.
+user_has_skill_level(User, Skill, Level) :-
+    entity(User, 'User', _),
+    entity(Skill, SkillType, _), is_subclass(SkillType, 'Skill'), % Or 'Category' if topics can have levels
+    rel(hasSkill, User, Skill, Attributes),
+    member(attr(level, Level), Attributes).
 
-% --- content_covers_skill and ccs_check ---
-content_covers_skill(ContainerID, SkillID) :-
-    entity(ContainerID, ContainerType, _),
-    is_subclass(ContainerType, 'Container'),
-    entity(SkillID, SkillCatType, _),
-    is_subclass(SkillCatType, 'Category'),
-    ccs_check(ContainerID, SkillID, ContainerType).
-
-ccs_check(ContainerID, SkillID, _ContainerType) :- % Rule CCS1
-    rel(assessesSkill, ContainerID, SkillID, _).
-
-ccs_check(ContainerID, SkillID, _ContainerType) :- % Rule CCS2
-    rel(partOf, AssessmentPartID, ContainerID, _),
-    entity(AssessmentPartID, PartType, _),
-    is_subclass(PartType, 'AssessmentContainer'),
-    rel(assessesSkill, AssessmentPartID, SkillID, _).
-
-ccs_check(ContainerID, SkillID, 'Lesson') :- % Rule CCS3
-    rel(partOf, ContainerID, ParentModuleID, _),
-    entity(ParentModuleID, 'Module', _),
-    content_covers_skill(ParentModuleID, SkillID).
-
-ccs_check(ContainerID, SkillID, ContainerType) :- % Rule CCS4
-    ContainerType \= 'Lesson',
-    transitively_part_of(SubPartID, ContainerID),
-    \+ (SubPartID == ContainerID), % Using \+ (==) instead of \@=
-    content_covers_skill(SubPartID, SkillID).
-
-% Helper: learner_mastered_container(UserID, ContainerID)
-learner_mastered_container(UserID, ContainerID) :-
-    entity(UserID, 'User', _),
-    entity(ContainerID, ContainerType, _), is_subclass(ContainerType, 'Container'),
-    rel(ownsAccomplishment, UserID, AccID, Attributes),
-    member(attr(isValid, true), Attributes),
-    entity(AccID, 'Accomplishment', _),
-    rel(awardedFor, AccID, ContainerID, _).
-
-% RULE 1: Peer Support Opportunity
-peer_support_opportunity(SkilledLearner, LearnerToSupport, ContainerID, SkillID) :-
-    entity(SkilledLearner, 'User', _), entity(LearnerToSupport, 'User', _),
-    SkilledLearner \= LearnerToSupport,
-    entity(ContainerID, ContainerType, _), is_subclass(ContainerType, 'Container'),
-    entity(SkillID, SkillCatType, _), is_subclass(SkillCatType, 'Category'),
-    rel(involvedInEvent, SkilledLearner, EventID, [attr(role, 'Learner')]),
-    rel(involvedInEvent, LearnerToSupport, EventID, [attr(role, 'Learner')]),
-    rel(instanceOf, EventID, ContainerID, _),
-    content_covers_skill(ContainerID, SkillID),
-    rel(hasSkill, SkilledLearner, SkillID, [attr(level, SkilledLevel)]),
-    (   rel(hasSkill, LearnerToSupport, SkillID, [attr(level, SupportLevel)]),
-        SkilledLevel > SupportLevel
-    ;   \+ rel(hasSkill, LearnerToSupport, SkillID, _)
+% Rule 5: Check if a user's skill level is below a required threshold.
+% Useful for identifying skill gaps.
+user_lacks_skill_for_level(User, Skill, RequiredLevel) :-
+    entity(User, 'User', _),
+    entity(Skill, SkillType, _), is_subclass(SkillType, 'Skill'),
+    (   user_has_skill_level(User, Skill, CurrentLevel) ->
+        CurrentLevel < RequiredLevel
+    ;   % User does not have the skill listed at all, so they lack it for any positive RequiredLevel
+        RequiredLevel > 0,
+        \+ rel(hasSkill, User, Skill, _)
     ).
 
-% RULE 2: Risk of Using Superseded Content
-risk_of_superseded_content_use(OldContent, NewContent, active_event(EventID)) :-
-    (entity(OldContent, OldType, _), (is_subclass(OldType, 'Container'); is_subclass(OldType, 'AssessmentTool'))),
-    (entity(NewContent, NewType, _), (is_subclass(NewType, 'Container'); is_subclass(NewType, 'AssessmentTool'))),
-    rel(evolvesTo, OldContent, NewContent, []),
-    rel(instanceOf, EventID, OldContent, _),
-    entity(EventID, 'Event', _).
+% Rule 6: Identify the skill required by a project.
+% Retrieves the requiredSkill attribute from the Project entity.
+project_requires_skill(ProjectID, SkillID) :-
+    entity(ProjectID, 'Project', Attributes),
+    member(attr(requiredSkill, SkillID), Attributes),
+    entity(SkillID, SkillType, _), is_subclass(SkillType, 'Skill'). % Ensure it's a skill
 
-risk_of_superseded_content_use(OldContent, NewContent, required_by_active_container(RequiringContainer)) :-
-    (entity(OldContent, OldType, _), (is_subclass(OldType, 'Container'); is_subclass(OldType, 'AssessmentTool'))),
-    (entity(NewContent, NewType, _), (is_subclass(NewType, 'Container'); is_subclass(NewType, 'AssessmentTool'))),
-    rel(evolvesTo, OldContent, NewContent, []),
-    rel(requires, RequiringContainer, OldContent, []),
-    entity(RequiringContainer, ReqType, _), is_subclass(ReqType, 'Container'),
-    rel(instanceOf, _, RequiringContainer, _).
+% Rule 7: Check if a user meets the skill requirement for a project (at a minimum level).
+% Assumes a minimum proficiency level is needed.
+user_meets_project_skill_requirement(User, Project, MinLevel) :-
+    project_requires_skill(Project, SkillID),
+    user_has_skill_level(User, SkillID, UserLevel),
+    UserLevel >= MinLevel.
 
-% RULE 3: Course of Study Completion Status
-get_all_mandatory_modules(CourseID, ModuleIDs) :-
-    entity(CourseID, 'Course', _),
-    findall(ModuleID,
-            (   rel(partOf, ModuleID, CourseID, _),
-                entity(ModuleID, 'Module', _)
+% Rule 8: Predict project interest based on mastered skills (ILP-like hypothesis).
+% This rule implements a hypothesis an ILP system might learn:
+% If a user has mastered a container, and that container covers a skill,
+% and a project requires that skill, then the user might be interested in the project.
+predict_project_interest_from_skills(User, Project) :-
+    entity(User, 'User', _),
+    entity(Project, 'Project', _),
+    learner_mastered_container(User, Container),       % User has mastered a container
+    content_covers_skill(Container, Skill),           % That container covers a certain skill
+    project_requires_skill(Project, Skill),           % A project requires this skill
+    \+ rel(interestedInProject, User, Project, _).    % And user is not already listed as interested
+
+% Rule 9: Suggest learning material for a user to improve a specific skill.
+% Suggests a container if the user has a low level or lacks the skill,
+% the container covers the skill, and the user hasn't already mastered it.
+suggest_learning_material_for_skill_gap(User, Container, SkillToImprove) :-
+    entity(User, 'User', _),
+    entity(SkillToImprove, SkillType, _), is_subclass(SkillType, 'Skill'),
+    user_lacks_skill_for_level(User, SkillToImprove, 5), % Example: target level 5
+    content_covers_skill(Container, SkillToImprove),
+    entity(Container, CType, _), is_subclass(CType, 'Container'),
+    \+ learner_mastered_container(User, Container).
+
+% Rule 10: Find potential collaborators for a project.
+% Lists all users who have expressed interest in a given project.
+find_project_team_candidates(Project, UserList) :-
+    entity(Project, 'Project', _),
+    findall(User, rel(interestedInProject, User, Project, _), UserList).
+
+% Rule 11: Check if a user attended an event instance of a container.
+% This is about participation, not necessarily mastery.
+user_attended_container_event(User, Container) :-
+    entity(User, 'User', _),
+    entity(Container, CType, _), is_subclass(CType, 'Container'),
+    rel(instanceOf, Event, Container, _),          % Find an event that is an instance of the Container
+    rel(involvedInEvent, User, Event, _).          % Check if the User was involved in that Event
+
+% Rule 12: Identify an instructor for a specific container.
+% An instructor is someone who taught an event for the container or developed it.
+is_instructor_for_container(Instructor, Container) :-
+    entity(Instructor, 'User', _),
+    entity(Container, CType, _), is_subclass(CType, 'Container'),
+    (   rel(instanceOf, Event, Container, _),
+        rel(involvedInEvent, Instructor, Event, Attributes),
+        member(attr(role, 'Teacher'), Attributes)
+    ;   rel(developed, Instructor, Container, _)
+    ).
+
+% Rule 13: Get all recursive parts of a container (e.g., modules in a course, lessons in a module).
+% This uses the `transitively_part_of` but collects all such parts for a given top container.
+% Note: `transitively_part_of(Component, Container)` means Component is part of Container. We want parts OF the Container.
+% So we need to find X such that transitively_part_of(X, TopContainer).
+get_recursive_container_parts(TopContainer, PartList) :-
+    entity(TopContainer, TopCType, _), is_subclass(TopCType, 'Container'),
+    findall(Part, (transitively_part_of(Part, TopContainer), Part \== TopContainer), DupPartList),
+    list_to_set(DupPartList, PartList). % Remove duplicates
+
+% Rule 14: Check if a user's specific accomplishment is currently valid.
+% Uses the `isValid` attribute from the `ownsAccomplishment` relationship.
+is_user_accomplishment_active(User, AccomplishmentID) :-
+    entity(User, 'User', _),
+    entity(AccomplishmentID, 'Accomplishment', _),
+    rel(ownsAccomplishment, User, AccomplishmentID, Attributes),
+    member(attr(isValid, true), Attributes).
+
+% Rule 15: Identify if a user is an expert in a specific skill.
+% Expertise is defined by having a skill level above a certain threshold.
+is_skill_expert(User, Skill, ExpertThreshold) :-
+    user_has_skill_level(User, Skill, UserLevel),
+    UserLevel >= ExpertThreshold.
+
+% Rule 16: Check if an assessment tool is the latest version.
+% An assessment tool is current if it does not evolve to another tool.
+is_tool_current_version(ToolID) :-
+    entity(ToolID, 'AssessmentTool', _),
+    \+ rel(evolvesTo, ToolID, _AnotherTool, _).
+
+% Rule 17: Find containers by a specific difficulty rating.
+% Retrieves containers that have a matching 'difficulty' attribute.
+find_content_by_difficulty_rating(DifficultyAtom, ContainerList) :-
+    atom(DifficultyAtom), % e.g., beginner, intermediate, advanced
+    findall(ContainerID,
+            (   entity(ContainerID, CType, Attributes),
+                is_subclass(CType, 'Container'),
+                member(attr(difficulty, DifficultyAtom), Attributes)
             ),
-            UnsortedModuleIDs),
-    sort(UnsortedModuleIDs, ModuleIDs).
+            ContainerList).
 
-user_mastered_all_modules(_User, []).
-user_mastered_all_modules(User, [ModuleH | ModuleT]) :-
-    learner_mastered_container(User, ModuleH),
-    user_mastered_all_modules(User, ModuleT).
+% Rule 18: Get the list of immediate prerequisites for a container.
+% Finds all containers C_prereq such that 'Container' requires 'C_prereq'.
+get_immediate_prerequisites_for_container(Container, PrerequisiteContainers) :-
+    entity(Container, CType, _), is_subclass(CType, 'Container'),
+    findall(Prereq, rel(requires, Container, Prereq, _), PrerequisiteContainers).
 
-user_completed_course_of_study(UserID, CourseID) :-
-    entity(UserID, 'User', _),
-    entity(CourseID, 'Course', _),
-    get_all_mandatory_modules(CourseID, MandatoryModules),
-    MandatoryModules \= [],
-    user_mastered_all_modules(UserID, MandatoryModules).
+% Rule 19: Get all transitive prerequisites for a container (Search Technique).
+% This rule recursively finds all containers that are direct or indirect prerequisites.
+% It uses a depth-first search approach to find all prerequisites.
+get_all_prerequisites_for_container(Container, AllPrerequisiteContainers) :-
+    entity(Container, CType, _), is_subclass(CType, 'Container'),
+    findall(P, collect_all_prereqs_recursive(Container, P, [Container]), PrereqsListDups),
+    list_to_set(PrereqsListDups, AllPrerequisiteContainers).
 
-% RULE 4: Overqualified Instructor for Introductory Content
-overqualified_instructor_for_lesson(TeacherID, LessonID, SkillID) :-
-    entity(TeacherID, 'User', _),
-    entity(LessonID, 'Lesson', _),
-    entity(SkillID, SkillCatType, _), is_subclass(SkillCatType, 'Category'),
-    HighSkillThreshold = 8,
-    rel(involvedInEvent, TeacherID, EventID, [attr(role, 'Teacher')]),
-    rel(instanceOf, EventID, LessonID, _),
-    rel(hasSkill, TeacherID, SkillID, [attr(level, TeacherSkillLevel)]),
-    TeacherSkillLevel >= HighSkillThreshold,
-    content_covers_skill(LessonID, SkillID),
-    \+ rel(partOf, _, LessonID, _),
-    rel(partOf, LessonID, _, _).
+collect_all_prereqs_recursive(CurrentContainer, Prereq, _Visited) :-
+    rel(requires, CurrentContainer, Prereq, _), % Direct prerequisite
+    \+ entity(Prereq, 'AssessmentTool', _). % Assuming prerequisites are other containers
+collect_all_prereqs_recursive(CurrentContainer, Prereq, Visited) :-
+    rel(requires, CurrentContainer, IntermediatePrereq, _),
+    \+ entity(IntermediatePrereq, 'AssessmentTool', _),
+    \+ member(IntermediatePrereq, Visited), % Avoid cycles and redundant exploration
+    collect_all_prereqs_recursive(IntermediatePrereq, Prereq, [IntermediatePrereq | Visited]).
 
-% RULE 5: Learner Lacks Prerequisite for Enrolled Event/Container
-learner_lacks_prerequisite(UserID, CurrentContainerID, PrerequisiteContainerID) :-
-    entity(UserID, 'User', _),
-    rel(involvedInEvent, UserID, EventID, [attr(role, 'Learner')]),
-    rel(instanceOf, EventID, CurrentContainerID, _),
-    entity(CurrentContainerID, CurrContType, _), is_subclass(CurrContType, 'Container'),
-    rel(requires, CurrentContainerID, PrerequisiteContainerID, []),
-    entity(PrerequisiteContainerID, PrereqType, _), is_subclass(PrereqType, 'Container'),
-    \+ learner_mastered_container(UserID, PrerequisiteContainerID).
+% Rule 20: Find an expert user who has also created content relevant to their expertise skill (Complex Query/Search).
+% This rule searches for users who are experts in a skill AND have developed content that covers that same skill.
+find_expert_content_creator_for_skill(User, Skill, CreatedContent) :-
+    is_skill_expert(User, Skill, 8), % Define expert threshold, e.g., level 8+
+    rel(developed, User, CreatedContent, _),
+    ( entity(CreatedContent, CCType, _), is_subclass(CCType, 'Container') ;
+      entity(CreatedContent, CCType, _), is_subclass(CCType, 'AssessmentTool') ),
+    content_covers_skill(CreatedContent, Skill).
 
-% RULE 6: Content with High Average Rating (setof version)
-% Helper predicate that might produce duplicates if is_subclass is non-deterministic
-compute_content_high_average_rating_internal(ContentID, AverageRating) :-
-    entity(ContentID, ContentType, _),
-    is_subclass(ContentType, 'Container'), % This is where non-determinism caused duplicates
-    findall(RatingVal,
-            rel(rated, _, ContentID, [attr(ratingValue, RatingVal)]),
-            Ratings),
-    Ratings \= [],
-    sum_list(Ratings, SumOfRatings),
-    length(Ratings, NumberOfRatings),
-    AverageRating is SumOfRatings / NumberOfRatings,
-    HighRatingThreshold = 4.0,
-    AverageRating >= HighRatingThreshold.
+% Rule 21 : Identify and Record Strong Project Candidates
+% A user is a strong candidate for a project if:
+% 1. They are interested in the project.
+% 2. The project requires a specific skill.
+% 3. The user possesses that skill (at any level for simplicity, or you could add a threshold).
+% If these conditions are met and the user isn't already marked, assert them as a strong candidate.
 
-% Main predicate using setof to get unique results
-content_high_average_rating(ContentID, AverageRating) :-
-    setof(CID-AvgR, compute_content_high_average_rating_internal(CID, AvgR), UniquePairs),
-    member(ContentID-AverageRating, UniquePairs).
-
-% RULE 7: User Suitable for Advanced Content
-user_suitable_for_advanced_content(UserID, AdvancedContainerID) :-
-    entity(UserID, 'User', _),
-    entity(AdvancedContainerID, AdvContType, Attributes),
-    is_subclass(AdvContType, 'Container'),
-    member(attr(difficulty, advanced), Attributes),
-
-    forall( (rel(requires, AdvancedContainerID, PrereqID, _),
-             entity(PrereqID, PrereqType, _), is_subclass(PrereqType, 'Container')),
-            learner_mastered_container(UserID, PrereqID) ),
-
-    content_covers_skill(AdvancedContainerID, SkillCoveredID),
-    IntermediateSkillThreshold = 6,
-    (   rel(hasSkill, UserID, SkillCoveredID, [attr(level, UserLevel)]),
-        UserLevel >= IntermediateSkillThreshold
-    ;
-        \+ rel(hasSkill, UserID, SkillCoveredID, _)
+identify_and_record_strong_candidates :-
+    % Iterate through all users interested in projects
+    rel(interestedInProject, User, Project, _),          % User is interested in Project
+    project_requires_skill(Project, RequiredSkill),      % Project requires Skill
+    rel(hasSkill, User, RequiredSkill, _),               % User possesses that RequiredSkill
+    
+    % Check if already recorded to avoid duplicate assertions and infinite loops if called repeatedly
+    (   \+ strong_project_candidate(User, Project, RequiredSkill) ->
+        assertz(strong_project_candidate(User, Project, RequiredSkill)),
+        user_info(User, UserName),
+        project_info(Project, ProjectName),
+        category_info(RequiredSkill, SkillName),
+        format('INFO: ~w (~w) is now a strong candidate for project ~w (~w) requiring skill ~w (~w).~n',
+               [UserName, User, ProjectName, Project, SkillName, RequiredSkill])
+    ;   true % Already recorded, do nothing
     ).
 
-% RULE 8: Stale Content
-stale_content(ContentID) :-
-    (   entity(ContentID, ContType, _), is_subclass(ContType, 'Container')
-    ;   entity(ContentID, ToolType, _), is_subclass(ToolType, 'AssessmentTool')
+% Rule 22: Identify a Learner Potentially Stuck Due to Missing Prerequisites
+% A learner is potentially stuck if they are actively involved in a container
+% (e.g., an event instance) but have not mastered one of its immediate prerequisite containers.
+is_learner_potentially_stuck(Learner, InContainer, missing_prerequisite(PrereqContainer)) :-
+    entity(Learner, 'User', _),
+    entity(InContainer, ICType, _), is_subclass(ICType, 'Container'),
+    % Learner is actively involved in an event instance of InContainer
+    rel(instanceOf, EventID, InContainer, _),
+    rel(involvedInEvent, Learner, EventID, EventAttrs),
+    member(attr(role, 'Learner'), EventAttrs),
+    % InContainer requires a PrereqContainer
+    rel(requires, InContainer, PrereqContainer, _),
+    entity(PrereqContainer, PCType, _), is_subclass(PCType, 'Container'), % Ensure Prereq is a container
+    % And the learner has NOT mastered this prerequisite
+    \+ learner_mastered_container(Learner, PrereqContainer).
+
+% Rule 23: Find a Peer for a Container Activity
+% Finds another learner (Peer) who is involved in the same event instance of a specific container
+% as the given User. This suggests a direct peer for collaborative activities.
+find_peer_for_container_activity(User, Container, Peer) :-
+    entity(User, 'User', _),
+    entity(Container, CType, _), is_subclass(CType, 'Container'),
+    entity(Peer, 'User', _),
+    User \== Peer, % Ensure User and Peer are different
+    % Both User and Peer are learners in the same event instance of the Container
+    rel(instanceOf, EventID, Container, _),
+    rel(involvedInEvent, User, EventID, UserEventAttrs),
+    member(attr(role, 'Learner'), UserEventAttrs),
+    rel(involvedInEvent, Peer, EventID, PeerEventAttrs),
+    member(attr(role, 'Learner'), PeerEventAttrs).
+
+% Rule 24: Calculate Average Rating for a Container
+% Calculates the average rating and the number of ratings for a given container
+% using the `aggregate_all/3` predicate for robust aggregation.
+container_average_rating(ContainerID, AverageRating, NumRatings) :-
+    entity(ContainerID, CType, _), is_subclass(CType, 'Container'),
+    aggregate_all(
+        count + sum(RatingValue), % Operations: count ratings, sum their values
+        (   rel(rated, _User, ContainerID, RateAttrs), % For each rating relationship for this container
+            member(attr(ratingValue, RatingValue), RateAttrs)
+        ),
+        NumRatings + SumOfRatings
     ),
-    \+ rel(evolvesTo, ContentID, _, []),
-    \+ rel(instanceOf, _, ContentID, []).
+    (NumRatings > 0 -> AverageRating is SumOfRatings / NumRatings ; AverageRating = 'not_rated', NumRatings = 0).
 
-% RULE 9: Potential Collaborative Project Team
-potential_project_team(ProjectID, User1, User2) :-
-    entity(ProjectID, 'Project', [attr(requiredSkill, RequiredSkillID)]),
-    rel(interestedInProject, User1, ProjectID, []),
-    rel(interestedInProject, User2, ProjectID, []),
-    User1 @< User2, % Using @< for canonical ordering
-    (   (rel(hasSkill, User1, RequiredSkillID, [attr(level, Level1)]), Level1 > 5)
-    ;   (rel(hasSkill, User2, RequiredSkillID, [attr(level, Level2)]), Level2 > 5)
-    ;   (rel(hasSkill, User1, RequiredSkillID, _), rel(hasSkill, User2, RequiredSkillID, _))
-    ).
-
-% RULE 10: Most Active Contributor for a Skill
-user_skill_contribution_count(UserID, SkillID, Count) :-
-    entity(UserID, 'User', _),
-    entity(SkillID, SkillCatType, _), is_subclass(SkillCatType, 'Category'),
-    findall(teaching(EventID),
-            (   rel(involvedInEvent, UserID, EventID, [attr(role, Role)]),
-                member(Role, ['Teacher', 'Speaker']),
-                rel(instanceOf, EventID, TaughtContainerID, _),
-                content_covers_skill(TaughtContainerID, SkillID)
-            ), TeachingActs),
-    findall(creation(DevContainerID),
-            (   rel(developed, UserID, DevContainerID, [attr(role, DevRole)]),
-                member(DevRole, ['Creator', 'InstructionalDesigner']),
-                (   entity(DevContainerID, DevContType, _), is_subclass(DevContType, 'Container')
-                ;   entity(DevContainerID, DevToolType, _), is_subclass(DevToolType, 'AssessmentTool')
-                ),
-                content_covers_skill(DevContainerID, SkillID)
-            ), CreationActs),
-    length(TeachingActs, TeachCount),
-    length(CreationActs, CreateCount),
-    Count is TeachCount + CreateCount,
-    Count > 0.
-
-most_active_contributor_for_skill(SkillID, UserID, MaxCount) :-
-    entity(SkillID, SkillCatType, _), is_subclass(SkillCatType, 'Category'),
-    user_skill_contribution_count(UserID, SkillID, MaxCount),
-    \+ ( user_skill_contribution_count(OtherUserID, SkillID, OtherCount),
-         OtherUserID \= UserID,
-         OtherCount > MaxCount ).
-
-% RULE 11: Unpopular Content
-unpopular_content(ContentID) :-
-    entity(ContentID, ContType, _), is_subclass(ContType, 'Container'),
-    (   (transitively_part_of(ContentID, CourseID), entity(CourseID, 'Course', _), rel(instanceOf, _, CourseID, _))
-    ;   rel(instanceOf, _, ContentID, _)
+% Rule 25: Suggest Direct Next Step for Skill Development (Search-like)
+% Suggests a container for a user to take next to develop a target skill.
+% The suggested container must cover the skill, the user must not have mastered it yet,
+% AND the user must have mastered all of its immediate container prerequisites.
+suggest_direct_next_step_for_skill(User, TargetSkill, SuggestedContainer) :-
+    entity(User, 'User', _),
+    entity(TargetSkill, SKType, _), is_subclass(SKType, 'Skill'),
+    entity(SuggestedContainer, SCType, _), is_subclass(SCType, 'Container'),
+    
+    content_covers_skill(SuggestedContainer, TargetSkill), % The container covers the target skill
+    \+ learner_mastered_container(User, SuggestedContainer), % User hasn't mastered this container yet
+    
+    % Check if all immediate *container* prerequisites for SuggestedContainer are mastered by User
+    % This uses forall/2: For all P that satisfy Goal1, P must also satisfy Goal2.
+    forall(
+        (   rel(requires, SuggestedContainer, Prereq, _), % Prereq is required by SuggestedContainer
+            entity(Prereq, PrereqEntityClass, _),
+            is_subclass(PrereqEntityClass, 'Container')   % And Prereq is itself a Container
+        ),
+        learner_mastered_container(User, Prereq)          % Then User must have mastered Prereq
     ),
-    \+ content_high_average_rating(ContentID, _), % Calls the setof version, which is fine
-    (   findall(RVal, rel(rated, _, ContentID, [attr(ratingValue, RVal)]), Ratings),
-        length(Ratings, NumRatings),
-        LowRatingCountThreshold = 2,
-        NumRatings < LowRatingCountThreshold
-    ;   \+ rel(rated, _, ContentID, _)
-    ).
-
-% RULE 12: Skill Gap in a Course
-skill_gap_in_course(CourseID, SkillID, PercentageLackingSkill) :-
-    entity(CourseID, 'Course', _),
-    entity(SkillID, SkillCatType, _), is_subclass(SkillCatType, 'Category'),
-    (   content_covers_skill(CourseID, SkillID)
-    ;   (transitively_part_of(PartID, CourseID), content_covers_skill(PartID, SkillID))
-    ),
-    findall(LearnerID,
-            (   rel(involvedInEvent, LearnerID, EventID, [attr(role, 'Learner')]),
-                rel(instanceOf, EventID, EventContainerID, _),
-                (   EventContainerID = CourseID
-                ;   transitively_part_of(EventContainerID, CourseID)
-                )
-            ), EnrolledLearnersDup),
-    sort(EnrolledLearnersDup, EnrolledLearners),
-    EnrolledLearners \= [],
-    findall(LearnerWithSkill,
-            (   member(LearnerWithSkill, EnrolledLearners),
-                rel(hasSkill, LearnerWithSkill, SkillID, [attr(level, Level)]),
-                ProficiencyThreshold = 5,
-                Level >= ProficiencyThreshold
-            ), ProficientLearners),
-    length(EnrolledLearners, TotalLearners),
-    length(ProficientLearners, NumProficient),
-    NumLacking is TotalLearners - NumProficient,
-    (TotalLearners > 0 -> PercentageLackingSkill is round((NumLacking * 100) / TotalLearners) ; PercentageLackingSkill = 0),
-    SignificantGapThreshold = 50,
-    PercentageLackingSkill >= SignificantGapThreshold.
-
-% RULE 13: Learning Path Suggestion
-suggest_next_container(UserID, NextContainerID) :-
-    entity(UserID, 'User', _),
-    learner_mastered_container(UserID, MasteredContainerID),
-    get_attribute_value(MasteredContainerID, difficulty, MasteredDifficulty),
-
-    entity(NextContainerID, NextContType, NextAttributes), is_subclass(NextContType, 'Container'),
-    NextContainerID \= MasteredContainerID,
-    \+ learner_mastered_container(UserID, NextContainerID),
-
-    (   (rel(partOf, MasteredContainerID, ParentID, _),
-         rel(partOf, NextContainerID, ParentID, _),
-         NextContainerID \= MasteredContainerID)
-    ;   rel(requires, NextContainerID, MasteredContainerID, [])
-    ;   (member(attr(difficulty, NextDifficulty), NextAttributes),
-         ( (MasteredDifficulty = beginner, NextDifficulty = intermediate)
-         ; (MasteredDifficulty = intermediate, NextDifficulty = advanced)
-         ),
-         (content_covers_skill(MasteredContainerID, SkillID), content_covers_skill(NextContainerID, SkillID)))
-    ),
-    forall( (rel(requires, NextContainerID, PrereqID, _), entity(PrereqID, PrereqContType, _), is_subclass(PrereqContType, 'Container')),
-            learner_mastered_container(UserID, PrereqID) ).
-
-% RULE 14: User with Broad Expertise
-user_with_broad_expertise(UserID, NumberOfHighSkills) :-
-    entity(UserID, 'User', _),
-    HighSkillDegreeThreshold = 7,
-    findall(SkillID,
-            (   rel(hasSkill, UserID, SkillID, [attr(level, Level)]),
-                Level >= HighSkillDegreeThreshold,
-                entity(SkillID, SkillCatType, _), is_subclass(SkillCatType, 'Category')
-            ), HighSkillIDs),
-    sort(HighSkillIDs, UniqueHighSkillIDs),
-    length(UniqueHighSkillIDs, NumberOfHighSkills),
-    MinSkillsForBroadExpertise = 3,
-    NumberOfHighSkills >= MinSkillsForBroadExpertise.
+    % Optional: Add a condition that the user doesn't already possess the skill at a high level
+    % For example: \+ (user_has_skill_level(User, TargetSkill, Level), Level >= 7),
+    
+    % Optional: If multiple such containers exist, one might want to add ordering
+    % (e.g., prefer 'beginner' over 'intermediate' if both satisfy conditions).
+    % This rule just finds *any* such container.
+    true. % Placeholder if no further conditions.
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% QUERY EXAMPLES (Unchanged from previous, still valid)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-/*
-% RULE 1: Peer Support Opportunity
-% ?- peer_support_opportunity(u3, u5, les_recursion, skill_prolog).
+% ====================================================================================
+% QUERIES 
+% Query 1
+% Who are all the learners?
+% ?- setof(User-Name, (is_learner(User), user_info(User, Name)), Learners).
 
-% RULE 2: Risk of Using Superseded Content
-% ?- risk_of_superseded_content_use(qn2_old, qn2, Reason).
+% Query 2
+% Who are the teachers or speakers?
+% ?- is_teacher(User), user_info(User, Name)
 
-% RULE 3: Course of Study Completion Status
-% ?- user_completed_course_of_study(u3, cos101).
+% Query 3
+% Which users have 'Prolog Programming' skill and what is their level?
+%?- user_has_skill_level(User, skill_prolog, Level), user_info(User, Name).
 
-% RULE 4: Overqualified Instructor for Introductory Content
-% ?- overqualified_instructor_for_lesson(u4, les_recursion, skill_prolog).
-% (or skill_recursion if data adjusted)
+% Query 4
+% What skill is required for the 'AI Chatbot' project (p1)?
+% ?- project_requires_skill(p1, SkillID), category_info(SkillID, SkillName).
 
-% RULE 5: Learner Lacks Prerequisite
-% ?- learner_lacks_prerequisite(u5, workshop_advanced_prolog, mod_prolog).
+% Query 5
+% Based on mastered skills, who might be interested in project 'p1' (AI Chatbot)? (ILP-like rule)
+% ?- predict_project_interest_from_skills(User, p1), user_info(User, Name).
 
-% RULE 6: Content with High Average Rating
-% ?- content_high_average_rating(ContentID, AvgRating).
+% query 6
+% Who are the current candidates (already expressed interest) for the 'AI Chatbot' project (p1)?
+% ?- find_project_team_candidates(p1, UserList).
 
-% RULE 7: User Suitable for Advanced Content
-% ?- user_suitable_for_advanced_content(u4, workshop_advanced_prolog).
+% Query 7
+% What containers are rated 'beginner' difficulty?
+% ?- find_content_by_difficulty_rating(beginner, ContainerList).
 
-% RULE 8: Stale Content
-% ?- stale_content(mod_prolog_2005).
+% Query 8
+% What are all the recursive parts (lessons, sub-modules) of the 'AI Course' (cos101)?
+% ?- get_recursive_container_parts(cos101, PartList).
 
-% RULE 9: Potential Collaborative Project Team
-% ?- potential_project_team(p1, User1, User2).
+% Query 9
+% Did 'Charlie_Learner' (u3) attend an event for the 'Recursion Lesson' (les_recursion)?
+% ?- user_attended_container_event(u3, les_recursion).
 
-% RULE 10: Most Active Contributor for a Skill
-% FIX THIS RULE
-% ?- most_active_contributor_for_skill(skill_prolog, User, Count).
+% Query 10
+% Who is an instructor for the 'Prolog Module' (mod_prolog)?
+% ?- is_instructor_for_container(Instructor, mod_prolog), user_info(Instructor, Name).
 
-% RULE 11: Unpopular Content
-% ?- unpopular_content(mod_cpp).
+% Query 11
+% Is 'Charlie_Learner' (u3)'s 'Prolog Module Certificate' (ac_prolog_module_cert) currently valid?
+% ?- is_user_accomplishment_active(u3, ac_prolog_module_cert).
 
-% RULE 12: Skill Gap in a Course
-% ?- skill_gap_in_course(cos101, skill_search, PercentageLacking).
 
-% RULE 13: Learning Path Suggestion
-% ?- suggest_next_container(u3, NextUp).
+% Query 12
+% Is the assessment tool 'qn2' the current version?
+% ?- is_tool_current_version(qn2).
 
-% RULE 14: User with Broad Expertise
-% ?- user_with_broad_expertise(User, NumSkills).
-*/
+% Query 13
+% What are ALL prerequisites (direct and indirect) for the 'Advanced Prolog Workshop' (workshop_advanced_prolog)?
+% ?- get_all_prerequisites_for_container(workshop_advanced_prolog, AllPrereqs).
+
+
+% Query 14
+% Find users who are expert (level >= 8) in 'Prolog Programming' (skill_prolog) AND have developed content that covers 'Prolog Programming'.
+% ?- find_expert_content_creator_for_skill(User, skill_prolog, CreatedContent), user_info(User, UserName), container_info(CreatedContent, ContentName).
+
+% Query 15
+% You would typically call this rule once to process existing data:
+% ?- identify_and_record_strong_candidates.
+% Or, more likely, to find all and collect them (though the rule asserts, so findall isn't strictly for collection here):
+% ?- findall(_, identify_and_record_strong_candidates, _).
+% This ensures it attempts to process for all possible combinations from the KBs current state.
+
+% Query 16
+% Find learners potentially stuck in the 'Advanced Prolog Workshop' (workshop_advanced_prolog):
+% ?- is_learner_potentially_stuck(Learner, workshop_advanced_prolog, Reason), user_info(Learner, Name).
+
+% Query 17
+% Find peers for 'Charlie_Learner' (u3) in the 'Advanced Prolog Workshop' (workshop_advanced_prolog):
+% ?- find_peer_for_container_activity(u3, workshop_advanced_prolog, Peer), user_info(Peer, PeerName).
+
+% Query 18
+% Get the average rating for the 'Prolog Module' (mod_prolog):
+% ?- container_average_rating(mod_prolog, AvgRating, NumRatings).
+
+% Query 19
+% Suggest the next container for 'Eve_Student' (u5) to learn 'Expert Prolog Techniques' (skill_expert_prolog):
+% ? - suggest_direct_next_step_for_skill(u5, skill_expert_prolog, Suggested), container_info(Suggested, Name).
+% Or if we want a list of suggestions:
+% setof(Name-Suggested,( suggest_direct_next_step_for_skill(u5, skill_expert_prolog, Suggested), container_info(Suggested, Name)),UniqueSuggestions).
+
+
