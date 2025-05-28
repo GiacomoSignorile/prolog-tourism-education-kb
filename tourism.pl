@@ -635,12 +635,18 @@ hotel_offers_service_type(HotelID, ServiceEntityID, TargetServiceType) :-
     ),
     is_subclass(ActualServiceEntityType, TargetServiceType).
 
-% Find all services offered by a luxury hotel
 luxury_hotel_all_services(LuxuryHotelID, ListOfServiceIDs) :-
-    is_luxury_hotel(LuxuryHotelID), % Use existing rule
-    findall(ServiceID,
-            hotel_offers_service_type(LuxuryHotelID, ServiceID, _AnyServiceType), % _AnyServiceType as wildcard
-            ListOfServiceIDs).
+    is_luxury_hotel(LuxuryHotelID), % Ensure LuxuryHotelID is a valid luxury hotel
+    setof(ServiceID,
+          _AnyServiceType^(hotel_offers_service_type(LuxuryHotelID, ServiceID, _AnyServiceType)),
+          ListOfServiceIDs).
+% If no services are found, setof/3 fails. To handle this and return an empty list:
+luxury_hotel_all_services_safe(LuxuryHotelID, ListOfServiceIDs) :-
+    is_luxury_hotel(LuxuryHotelID),
+    (   setof(ServiceID, _AnyServiceType^(hotel_offers_service_type(LuxuryHotelID, ServiceID, _AnyServiceType)), ListOfServiceIDs)
+    ->  true % setof succeeded
+    ;   ListOfServiceIDs = [] % setof failed (no services), so return empty list
+    ).
 
 % 10. Find POIs located at a specific place (using PlaceID from entity attribute)
 poi_at_place(PoiID, PlaceID) :-
@@ -686,11 +692,12 @@ is_eco_friendly_transport(TransportID) :-
       get_attribute_value(TransportID, typeOfFuel, 'Electric')
     ).
 
-% Find POIs for a specific category and count them
 count_pois_for_category(CategoryName, Count) :-
-    category_info(_CatID, CategoryName), % Validate CategoryName and get CatID if needed
-    findall(PoiID, poi_for_category(PoiID, CategoryName), PoiList),
-    length(PoiList, Count).
+    category_info(_CatID, CategoryName), 
+    (   setof(PoiID, poi_for_category(PoiID, CategoryName), PoiList)
+    ->  length(PoiList, Count)
+    ;   Count = 0 
+    ).
 
 % 16. Find POIs relevant for a specific category (e.g., 'Art')
 poi_for_category(PoiID, CategoryName) :-
@@ -920,6 +927,75 @@ activity_for_age_placeholder(_Category, _Age, _PoiID) :-
     % Logic to check if PoiID (related to _Category) is suitable for _Age
     % Example: entity(PoiID, _, Attributes), member(attr(minAge, Min), Attributes), Age >= Min.
     true. % Currently always true
+
+
+% --- DYNAMIC PREDICATES FOR USER PREFERENCES ---
+
+user_preference(UserID, LikedPoiID).
+% This predicate will store facts like: user_preference(person1, louvre).
+
+% add_preference(+UserID, +PoiID)
+% Adds a POI to a user's liked list.
+% Uses assertz to add the new fact at the end of the database for user_preference/2.
+add_preference(UserID, PoiID) :-
+    % Optional: Check if UserID and PoiID are valid entities first
+    person_info(UserID, _), % Assumes person_info/2 stores valid users
+    is_poi(PoiID),          % Assumes is_poi/1 checks for valid POIs
+    \+ user_preference(UserID, PoiID), % Only add if not already a preference
+    assertz(user_preference(UserID, PoiID)),
+    format('Preference: ~w liked ~w added.~n', [UserID, PoiID]).
+add_preference(UserID, PoiID) :-
+    user_preference(UserID, PoiID), % Already a preference
+    format('INFO: ~w already liked ~w.~n', [UserID, PoiID]).
+add_preference(UserID, _PoiID) :-
+    \+ person_info(UserID, _),
+    format('ERROR: User ~w not found. Preference not added.~n', [UserID]),
+    !, fail.
+add_preference(_UserID, PoiID) :-
+    \+ is_poi(PoiID),
+    format('ERROR: POI ~w not found. Preference not added.~n', [PoiID]),
+    !, fail.
+
+
+% remove_preference(+UserID, +PoiID)
+% Removes a POI from a user's liked list.
+% Uses retract/1 to remove the matching fact.
+remove_preference(UserID, PoiID) :-
+    user_preference(UserID, PoiID), % Check if the preference exists
+    retract(user_preference(UserID, PoiID)),
+    format('Preference: ~w unliked ~w removed.~n', [UserID, PoiID]).
+remove_preference(UserID, PoiID) :-
+    \+ user_preference(UserID, PoiID), % Preference doesn't exist
+    format('INFO: ~w did not have ~w as a preference. Nothing removed.~n', [UserID, PoiID]).
+
+list_preferences(UserID) :-
+    person_info(UserID, UserName),
+    format('Preferences for ~w (~w):~n', [UserName, UserID]),
+    findall(CurrentPoiID, user_preference(UserID, CurrentPoiID), AllPreferences),
+    (   AllPreferences = []
+    ->  format('  No preferences found for this user.~n', [])
+    ;   forall(member(PoiToList, AllPreferences),
+               (get_entity_display_name(PoiToList, PoiDisplayName),
+                format('  - ~w (~w)~n', [PoiDisplayName, PoiToList]))
+            )
+    ).
+list_preferences(UserID) :- % Handles case where person_info fails
+    \+ person_info(UserID, _),
+    format('ERROR: User ~w not found.~n', [UserID]).
+
+% recommend_based_on_prefs(+User, -Recommendation)
+% Recommends a POI to a user based on their existing preferences.
+% It finds a POI liked by the user, then recommends a similar POI (same type, same city)
+% that the user has not already liked.
+recommend_based_on_prefs(User, Recommendation) :-
+    user_preference(User, LikedPOI),         % 1. Find a POI the user already likes
+    entity(LikedPOI, _Type, _Attributes),    % 2. (Implicitly validates LikedPOI and gets its type via recommend_similar_poi)
+    recommend_similar_poi(LikedPOI, Recommendation), % 3. Find a similar POI (uses your S10 rule)
+    Recommendation \== LikedPOI,             % 4. Ensure the recommendation is not the same POI
+    \+ user_preference(User, Recommendation). % 5. Ensure the user hasn't already liked the recommendation
+
+% To get all recommendations for a user:
+% ?- setof(R, recommend_based_on_prefs(person1, R), Recommendations).
 
 % --- SEARCH RULES ---
 
@@ -1296,5 +1372,64 @@ poi_with_custom_filters(
        false, true, false                % Disable TimeLimit, Enable MaxCost, Disable EntranceFee
    ), get_entity_display_name(PoiID, Name).
 
+*/
+
+% --- QUERY EXAMPLES FOR DYNAMIC PREDICATES ---
+/*
+?- add_preference(person1, louvre).
+   Preference: person1 liked louvre added.
+   true.
+
+?- add_preference(person1, eiffel_tower).
+   Preference: person1 liked eiffel_tower added.
+   true.
+
+?- add_preference(person1, louvre). % Try adding again
+   INFO: person1 already liked louvre.
+   true.
+
+?- add_preference(non_existent_user, louvre).
+   ERROR: User non_existent_user not found. Preference not added.
+   false.
+
+?- add_preference(person1, non_existent_poi).
+   ERROR: POI non_existent_poi not found. Preference not added.
+   false.
+
+?- list_preferences(person1).
+   Preferences for Alice Wonderland (person1):
+     - Louvre Museum (louvre)
+     - Eiffel Tower (eiffel_tower)
+   true.f
+
+?- user_preference(person1, X).
+   X = louvre ;
+   X = eiffel_tower.
+
+% Assuming recommend_similar_poi(louvre, musee_orsay) is true
+% and person1 has not liked musee_orsay yet.
+?- recommend_based_on_prefs(person1, Recommendation).
+   Recommendation = musee_orsay ; % If Louvre leads to Musee d'Orsay
+   ... % Other recommendations based on Eiffel Tower, etc.
+
+% To get unique recommendations:
+?- setof(R, recommend_based_on_prefs(person1, R), Recommendations).
+   Recommendations = [musee_orsay]. % Example output
+
+?- remove_preference(person1, eiffel_tower).
+   Preference: person1 unliked eiffel_tower removed.
+   true.
+
+?- user_preference(person1, eiffel_tower).
+   false.
+
+?- list_preferences(person1).
+   Preferences for Alice Wonderland (person1):
+     - Louvre Museum (louvre)
+   true.
+
+?- remove_preference(person1, colosseum). % Trying to remove something not preferred
+   INFO: person1 did not have colosseum as a preference. Nothing removed.
+   true.
 */
 % --- END OF FILE ---
