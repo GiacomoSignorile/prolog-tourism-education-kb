@@ -8,6 +8,10 @@
 :- discontiguous category_info/2.
 :- discontiguous collection_info/2.
 :- discontiguous event_info/3.
+:- dynamic user_preference/2.
+:- discontiguous can_travel_directly/3. % For pathfinding
+:- discontiguous is_reachable/2.         % For pathfinding
+:- discontiguous is_reachable/3.         % For pathfinding with cycle detection
 
 % --- SCHEMA DEFINITIONS ---
 
@@ -499,6 +503,9 @@ entity(museum_roman_history, 'Museum', [attr(name, 'Museum of Roman History'), a
 
 % Free museums in Kyoto
 entity(museum_kyoto_art, 'Museum', [attr(name, 'Kyoto Art Museum'), attr(place, p3), attr(estimatedCost, 0), attr(requiresTicket, false)]).
+serves_poi(paris_metro_line1, louvre).
+serves_poi(paris_metro_line1, musee_orsay).
+entity(paris_metro_line1, 'RailTransportation', [attr(name, 'Paris Metro Line 1')]).
 % -- Relationships (RelationshipName, SubjectID, ObjectID, ListOfAttributes) --
 rel(wasIn, mona_lisa, louvre, []).
 rel(wasIn, louvre, p1, []).
@@ -930,32 +937,31 @@ activity_for_age_placeholder(_Category, _Age, _PoiID) :-
 
 
 % --- DYNAMIC PREDICATES FOR USER PREFERENCES ---
-
-user_preference(UserID, LikedPoiID).
+%user_preference(UserID, LikedPoiID).
 % This predicate will store facts like: user_preference(person1, louvre).
 
 % add_preference(+UserID, +PoiID)
 % Adds a POI to a user's liked list.
 % Uses assertz to add the new fact at the end of the database for user_preference/2.
 add_preference(UserID, PoiID) :-
-    % Optional: Check if UserID and PoiID are valid entities first
-    person_info(UserID, _), % Assumes person_info/2 stores valid users
-    is_poi(PoiID),          % Assumes is_poi/1 checks for valid POIs
-    \+ user_preference(UserID, PoiID), % Only add if not already a preference
-    assertz(user_preference(UserID, PoiID)),
-    format('Preference: ~w liked ~w added.~n', [UserID, PoiID]).
-add_preference(UserID, PoiID) :-
-    user_preference(UserID, PoiID), % Already a preference
-    format('INFO: ~w already liked ~w.~n', [UserID, PoiID]).
-add_preference(UserID, _PoiID) :-
-    \+ person_info(UserID, _),
-    format('ERROR: User ~w not found. Preference not added.~n', [UserID]),
-    !, fail.
-add_preference(_UserID, PoiID) :-
-    \+ is_poi(PoiID),
-    format('ERROR: POI ~w not found. Preference not added.~n', [PoiID]),
-    !, fail.
+    person_info(UserID, _), % Check user validity
+    is_poi(PoiID),          % Check POI validity
+    (   user_preference(UserID, PoiID) % Condition: Does preference already exist?
+    ->  format('INFO: ~w already liked ~w.~n', [UserID, PoiID]) % TrueAction: Already a preference
+    ;   assertz(user_preference(UserID, PoiID)),  % FalseAction: Not a preference, add it
+        format('Preference: ~w liked ~w added.~n', [UserID, PoiID])
+    ), !. % Cut to prevent backtracking into error clauses if initial checks pass
 
+add_preference(UserID, _PoiID) :- % Error: User not found
+    \+ person_info(UserID, _), % This condition is key
+    format('ERROR: User ~w not found. Preference not added.~n', [UserID]),
+    !, fail. % Cut and fail
+
+add_preference(UserID, PoiID) :- % Error: POI not found (and user was found)
+    person_info(UserID, _), % This check ensures we don't mask the user error if the previous clause was structured differently
+    \+ is_poi(PoiID),       % This condition is key
+    format('ERROR: POI ~w not found. Preference not added.~n', [PoiID]),
+    !, fail. % Cut and fail
 
 % remove_preference(+UserID, +PoiID)
 % Removes a POI from a user's liked list.
@@ -1120,6 +1126,25 @@ find_visits_by_planner_and_budget(PersonID, MinBudget, MaxBudget, VisitID) :-
     Budget >= MinBudget,
     Budget =< MaxBudget.
 
+% S13: Find direct travel possibilities between two POIs
+can_travel_directly(Poi1, Poi2, 'local_transport') :-
+    is_poi(Poi1), is_poi(Poi2), Poi1 \== Poi2,
+    poi_in_city(Poi1, CityName), % Uses your existing rule
+    poi_in_city(Poi2, CityName). % Both POIs are in the same city
+
+% S14: Find reachable POIs from a given POI
+is_reachable(Origin, Destination) :-
+    is_reachable(Origin, Destination, [Origin]),
+    !. 
+% is_reachable(CurrentLocation, Destination, VisitedList)
+is_reachable(Current, Destination, _Visited) :-
+    can_travel_directly(Current, Destination, _Means).
+
+is_reachable(Current, Destination, Visited) :-
+    can_travel_directly(Current, Intermediate, _Means),
+    Intermediate \== Destination,
+    \+ member(Intermediate, Visited), % Avoid cycles by not revisiting
+    is_reachable(Intermediate, Destination, [Intermediate | Visited]). % Add Intermediate to visited list
 
 % --- QUERY EXAMPLES ---
 /*
@@ -1431,5 +1456,16 @@ poi_with_custom_filters(
 ?- remove_preference(person1, colosseum). % Trying to remove something not preferred
    INFO: person1 did not have colosseum as a preference. Nothing removed.
    true.
+
+   ?- is_reachable(louvre, eiffel_tower).
+% Expected: true (if both are in Paris City Center)
+
+    ?- is_reachable(louvre, colosseum).
+    % Expected: false (with the current simple can_travel_directly/3)
+    % To make this true, you'd need to define inter-city travel in can_travel_directly/3
+    % e.g., louvre -> paris_main_station, paris_main_station -> rome_station (by train), rome_station -> colosseum
+
+    % Example: Find all POIs reachable from the Louvre
+    ?- findall(Dest, is_reachable(louvre, Dest), ReachableFromLouvre).
 */
 % --- END OF FILE ---
