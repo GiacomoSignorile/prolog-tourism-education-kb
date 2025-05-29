@@ -442,6 +442,7 @@ entity(ryokan_onsen, 'Spa', [attr(name, 'Private Onsen Experience')]).
 
 entity(paris_main_station, 'Station', [attr(name, 'Gare du Nord'), attr(place, p1), attr(kind, 'Train')]).
 entity(rome_fco_airport, 'Station', [attr(name, 'Fiumicino Airport'), attr(place, p2), attr(kind, 'Airport')]).
+entity(fco_airline1, 'AirTransportation', [attr(name, 'FCO Airline 1')]).
 
 entity(my_sedan, 'Car', [attr(name, 'My Sedan'), attr(type, 'Sedan'), attr(availability, true), attr(consumption, '7L/100km'), attr(typeOfFuel, 'Gasoline')]).
 entity(city_bus_101, 'Bus', [attr(name, 'City Bus 101'), attr(availability, true), attr(consumption, '20L/100km'), attr(typeOfFuel, 'Diesel')]).
@@ -512,6 +513,7 @@ rel(makes, person1, paris_trip_alice, [attr(role, 'planner')]).
 rel(makes, person2, rome_weekend_bob, [attr(role, 'traveler')]).
 rel(makes, col2, rome_weekend_bob, []).
 rel(developed, artist_davinci, mona_lisa, [attr(role, 'painter')]).
+rel(serves, rome_fco_airport, fco_airline1, []).
 
 
 
@@ -594,12 +596,6 @@ hotel_offers_service_type(HotelID, ServiceEntityID, TargetServiceType) :-
     is_subclass(ActualServiceEntityType, TargetServiceType).
 
 luxury_hotel_all_services(LuxuryHotelID, ListOfServiceIDs) :-
-    is_luxury_hotel(LuxuryHotelID), 
-    setof(ServiceID,
-          _AnyServiceType^(hotel_offers_service_type(LuxuryHotelID, ServiceID, _AnyServiceType)),
-          ListOfServiceIDs).
-
-luxury_hotel_all_services_safe(LuxuryHotelID, ListOfServiceIDs) :-
     is_luxury_hotel(LuxuryHotelID),
     (   setof(ServiceID, _AnyServiceType^(hotel_offers_service_type(LuxuryHotelID, ServiceID, _AnyServiceType)), ListOfServiceIDs)
     ->  true
@@ -615,20 +611,6 @@ poi_at_place(PoiID, PlaceID) :-
 poi_in_city(PoiID, CityName) :-
     poi_at_place(PoiID, PlaceID), 
     place_info(PlaceID, CityName, _, _, _).
-
-% 12. Generalize: is something a "cultural site"?
-is_cultural_site(SiteID) :-
-    entity(SiteID, Type, _),
-    ( is_subclass(Type, 'Museum');
-      is_subclass(Type, 'ArchaeologicalSite');
-      is_subclass(Type, 'Monument');
-      is_subclass(Type, 'Palace');
-      is_subclass(Type, 'Theater');
-      is_subclass(Type, 'Church'); 
-      is_subclass(Type, 'Cathedral');
-      is_subclass(Type, 'Library');
-      is_subclass(Type, 'Archive')
-    ).
 
 % 13. Find relaxation spots (Spas, Parks, some types of HotelServices like Yoga) generalized with a list.
 relaxation_type(Type) :- member(Type, ['Spa', 'Park', 'Yoga', 'Pilates', 'Resort', 'Massage']).
@@ -680,7 +662,7 @@ poi_in_person_visit(PersonID, PoiID) :-
     rel(belongsTo, PoiID, CollectionID, _), 
     is_poi(PoiID).
 
-% 19. Is an attraction made of a specific material? (allows partial match)
+% 19. Check if an attraction is made of a specific material (e.g., 'Oil paint', 'Marble')
 attraction_material(AttractionID, MaterialString) :-
     entity(AttractionID, 'Attraction', Attributes),
     member(attr(material, ActualMaterial), Attributes),
@@ -712,13 +694,6 @@ hotel_offers_beauty_service(HotelID, ServiceEntityID, SpecificBeautyServiceType)
     entity(ServiceEntityID, SpecificBeautyServiceType, _), 
     is_subclass(SpecificBeautyServiceType, 'BeautyService'). 
 
-% 24. Find places that offer Thai Massage
-offers_thai_massage(PlaceID) :- 
-    entity(PlaceID, 'Hotel', _), 
-    hotel_offers_service_type(PlaceID, _ServiceEntityID, 'Thai').
-offers_thai_massage(PlaceID) :- 
-    entity(PlaceID, 'Thai', _), 
-    is_subclass('Thai', 'BeautyService'). 
 
 % 25. Find POIs that have a time limit for visits
 poi_has_time_limit(PoiID, TimeLimitMinutes) :-
@@ -732,24 +707,23 @@ available_road_transport(TransportID, Type) :-
     is_subclass(Type, 'RoadTransportation'),
     member(attr(availability, true), Attributes).
 
-% 27. Check if a place is a pizzeria or steakhouse
-is_pizzeria_or_stakehouse(PlaceID) :-
-    entity(PlaceID, Type, _),
-    (is_subclass(Type, 'Pizzeria') ; is_subclass(Type, 'Stakehouse')).
+is_religious_site_or_place(EntityID, ReligiousType) :-
+    entity(EntityID, EntityActualType, _),
+    is_subclass(EntityActualType, 'ReligiousService'), 
+    ReligiousType = EntityActualType. 
 
-% 28. Find POIs that are religious sites (based on ReligiousService hierarchy)
-is_religious_service_site(SiteID, SpecificReligionType) :-
-    entity(SiteID, SpecificReligionType, _),
-    is_subclass(SpecificReligionType, 'ReligiousService').
+is_religious_site_or_place(EntityID, ReligiousType) :-
+    entity(EntityID, EntityActualType, _),
+    is_physical_place_of_worship_type(EntityActualType), 
+    ReligiousType = EntityActualType. 
 
-is_place_of_worship(SiteID, Type) :-
-    entity(SiteID, Type, _),
-    ( is_subclass(Type, 'Church');
-      is_subclass(Type, 'Mosque');
-      is_subclass(Type, 'Temple');
-      is_subclass(Type, 'Shrine');
-      is_subclass(Type, 'Synagogue') 
-    ).
+is_physical_place_of_worship_type(Type) :-
+    member(SuperType, ['Church', 'Mosque', 'Temple', 'Shrine', 'Synagogue', 
+                       'Cathedral', 'Monastery', 'Pagoda', 'Wat']),        
+    is_subclass(Type, SuperType). 
+is_physical_place_of_worship_type(Type) :- 
+    member(Type, ['Church', 'Mosque', 'Temple', 'Shrine', 'Synagogue',
+                  'Cathedral', 'Monastery', 'Pagoda', 'Wat']).
 
 
 % 29. Find shops of a particular type (e.g., 'Gifts')
@@ -764,22 +738,6 @@ station_serves_transport_kind(StationID, Kind) :-
 
 % 31. Calculate the average cost of museums in a city
 average_museum_cost_in_city(CityName, AverageCost) :-
-    poi_in_city(MuseumID, CityName),         
-    entity(MuseumID, 'Museum', _Attributes), 
-    findall(Cost,
-            (   poi_in_city(MID, CityName),
-                entity(MID, 'Museum', _),
-                get_attribute_value(MID, estimatedCost, Cost),
-                number(Cost) 
-            ),
-            CostsList),
-    CostsList \= [], 
-    sum_list(CostsList, TotalCost),
-    length(CostsList, NumberOfMuseums),
-    AverageCost is TotalCost / NumberOfMuseums.
-
-% For unique museums to avoid issues if poi_in_city yields duplicates 
-average_museum_cost_in_city_unique(CityName, AverageCost) :-
     setof(Cost, MID^CityPoi^( 
                 poi_in_city(MID, CityName),
                 entity(MID, 'Museum', _),
@@ -913,7 +871,7 @@ find_pois_in_city_by_category(CityName, CategoryName, PoiID) :-
 
 % S5: Find POIs that are free and belong to a specific category
 find_free_pois_by_category(CategoryName, PoiID) :-
-    poi_is_free(PoiID),                  t
+    poi_is_free(PoiID),                  
     poi_for_category(PoiID, CategoryName).
 
 % S6: Find hotels in a city with a minimum star rating offering a specific service type
@@ -923,26 +881,6 @@ find_hotels_in_city_by_stars_and_service(CityName, MinStars, ServiceTypeName, Ho
     Stars >= MinStars,
     poi_in_city(HotelID, CityName), 
     hotel_offers_service_type(HotelID, ServiceEntityID, ServiceTypeName). 
-
-% S7: Search for transportation options between two  places/POIs
-
-% Find transport available at the place of a POI
-transport_at_poi_place(PoiID, TransportID, TransportType) :-
-    poi_at_place(PoiID, PlaceID), 
-    entity(StationID, 'Station', StationAttrs),
-    member(attr(place, PlaceID), StationAttrs), 
-    member(attr(kind, StationKind), StationAttrs), 
-    available_road_transport(TransportID, TransportType), 
-    (TransportType = 'Bus' ; TransportType = 'Taxi'). 
-
-transport_at_poi_place(PoiID, TransportID, TransportType) :-
-    poi_at_place(PoiID, PlaceID),
-    entity(StationID, 'Station', [attr(place, PlaceID), attr(kind, 'Train')]),
-    entity(TransportID, TransportType, _), is_subclass(TransportType, 'RailTransportation').
-transport_at_poi_place(PoiID, TransportID, TransportType) :-
-    poi_at_place(PoiID, PlaceID),
-    entity(StationID, 'Station', [attr(place, PlaceID), attr(kind, 'Airport')]),
-    entity(TransportID, TransportType, _), is_subclass(TransportType, 'AirTransportation').
 
 % S8: Find POIs relevant to a list of categories (POI must be relevant to ALL listed categories)
 find_pois_for_multiple_categories([], _PoiID) :- !, fail. 
@@ -998,9 +936,9 @@ mov(PoiID, AttractionID) :-
 
 mov(PoiID, PlaceID) :-
     entity(PoiID, TypeP, _), is_subclass(TypeP, 'PointOfInterest'),
-    place_info(PlaceID, _, _, _, _), % Ensure PlaceID is a valid place
+    place_info(PlaceID, _, _, _, _), 
     rel(wasIn, PoiID, PlaceID, _).
-mov(PlaceID, PoiID) :- % And its inverse
+mov(PlaceID, PoiID) :- 
     entity(PoiID, TypeP, _), is_subclass(TypeP, 'PointOfInterest'),
     place_info(PlaceID, _, _, _, _),
     rel(wasIn, PoiID, PlaceID, _).
@@ -1377,9 +1315,7 @@ poi_with_custom_filters(
 % true.
 
 ?- go(louvre, colosseum).
-% Expected: false. (Unless you define mov/2 clauses that can bridge cities,
-%                  e.g., via shared categories, or if you add transport links
-%                  to mov/2 which is not the current focus here).
+% Expected: false. 
 
 */
 % --- END OF FILE ---
