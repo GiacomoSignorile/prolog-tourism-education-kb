@@ -924,7 +924,7 @@ find_hotels_in_city_by_stars_and_service(CityName, MinStars, ServiceTypeName, Ho
     poi_in_city(HotelID, CityName), 
     hotel_offers_service_type(HotelID, ServiceEntityID, ServiceTypeName). 
 
-% S7: Search for transportation options between two (conceptual) places/POIs
+% S7: Search for transportation options between two  places/POIs
 
 % Find transport available at the place of a POI
 transport_at_poi_place(PoiID, TransportID, TransportType) :-
@@ -1011,9 +1011,6 @@ mov(AttractionID, PersonID) :- rel(developed, PersonID, AttractionID, _).
 mov(EntityID, CollectionID) :- rel(belongsTo, EntityID, CollectionID, _).
 mov(CollectionID, EntityID) :- rel(belongsTo, EntityID, CollectionID, _).
 
-% --- LUGER & STUBBLEFIELD STYLE DFS ADAPTED FOR ENTITIES ---
-
-% Stack operations (using simple lists)
 empty_stack([]).
 
 stack(Element, CurrentStack, [Element | CurrentStack]). 
@@ -1363,15 +1360,26 @@ poi_with_custom_filters(
    INFO: person1 did not have colosseum as a preference. Nothing removed.
    true.
 
-   ?- is_reachable(louvre, eiffel_tower).
-% Expected: true (if both are in Paris City Center)
+?- go(mona_lisa, p1).
+% Expected output (if path exists via Louvre):
+% Path found:
+% Mona Lisa
+% Louvre Museum
+% Paris City Center
+% true.
 
-    ?- is_reachable(louvre, colosseum).
-    % Expected: false (with the current simple can_travel_directly/3)
-    % To make this true, you'd need to define inter-city travel in can_travel_directly/3
-    % e.g., louvre -> paris_main_station, paris_main_station -> rome_station (by train), rome_station -> colosseum
+?- go(artist_davinci, cat_art).
+% Expected output (if path via mona_lisa -> relevantFor):
+% Path found:
+% Leonardo da Vinci
+% Mona Lisa
+% Art
+% true.
 
-    % Example: Find all POIs reachable from the Louvre
-    ?- findall(Dest, is_reachable(louvre, Dest), ReachableFromLouvre).
+?- go(louvre, colosseum).
+% Expected: false. (Unless you define mov/2 clauses that can bridge cities,
+%                  e.g., via shared categories, or if you add transport links
+%                  to mov/2 which is not the current focus here).
+
 */
 % --- END OF FILE ---
