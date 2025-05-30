@@ -10,6 +10,10 @@
 % --- DYNAMIC PREDICATE DECLARATION
 :- dynamic strong_project_candidate/3. % strong_project_candidate(User, Project, Skill)
 
+% --- PERFORMANCE ENHANCEMENT: Indexing for rel/4 and entity/3 ---
+:- index(rel(1,1,1,0)).
+:- index(entity(1,1,0)).
+
 % Specific Info Predicates
 :- discontiguous user_info/2.
 :- discontiguous container_info/2. % For Course, Module, Lesson, Workshop, AssessmentContainer
@@ -230,44 +234,35 @@ invert_subj_obj([], []).
 invert_subj_obj([Subject-Object|T1], [Object-Subject|T2]) :-
   invert_subj_obj(T1, T2).
 
-% gather_attributes(+ClassName, -AllAttributes)
-% Gathers attributes from ClassName and all its superclasses.
+% --- ATTRIBUTE INHERITANCE ---
+% Ensures attributes are inherited from all superclasses, not just direct ones, and avoids duplicates
 gather_attributes(ClassName, AllAttributes) :-
-    ( atom(ClassName) -> NameAtom = ClassName ; ClassName =.. [NameAtom|_] ), % Handle if ClassName is term or atom
-    (   schema_entity_definition(NameAtom, DirectAttributes) -> % It's an entity schema fact
-        findall(SuperCName, is_subclass(NameAtom, SuperCName), ParentsListWithSelf),
-        remove_self(NameAtom, ParentsListWithSelf, ParentsList),
-        maplist(gather_direct_entity_attributes, ParentsList, ParentAttributesLists),
-        flatten([DirectAttributes | ParentAttributesLists], FlatAttributes), % Put direct ones first
-        list_to_set(FlatAttributes, AllAttributes)
-    ;   schema_relationship_definition(NameAtom, _, DirectAttributes) -> % It's a relationship schema fact
-        findall(SuperCName, is_subclass(NameAtom, SuperCName), ParentsListWithSelf), % Assuming rels can have hierarchy
-        remove_self(NameAtom, ParentsListWithSelf, ParentsList),
-        maplist(gather_direct_relationship_attributes, ParentsList, ParentAttributesLists),
-        flatten([DirectAttributes | ParentAttributesLists], FlatAttributes),
-        list_to_set(FlatAttributes, AllAttributes)
-    ;   inverse_of(NameAtom, BaseRel) -> % It's an inverse relationship name
-        gather_attributes(BaseRel, AllAttributes)
-    ;   AllAttributes = [] % Not a defined entity or relationship, or no attributes
+    atom(ClassName),
+    findall(Super, is_subclass(ClassName, Super), SupersWithSelf),
+    maplist(schema_entity_definition_or_empty, SupersWithSelf, AttrLists),
+    flatten(AttrLists, FlatAttrs),
+    list_to_set(FlatAttrs, AllAttributes).
+
+schema_entity_definition_or_empty(Class, Attrs) :-
+    schema_entity_definition(Class, Attrs), !.
+schema_entity_definition_or_empty(_, []).
+
+% --- VALIDATION RULES ---
+% Ensures that all rel(partOf, X, Y, _) facts have both X and Y defined as entities.
+% Can be run to check for missing entities in partOf relationships
+validate_partof_entities :-
+    forall(
+        rel(partOf, X, Y, _),
+        ( (entity(X, _, _) -> true ; format('WARNING: partOf relationship source ~w is not a defined entity!~n', [X])),
+          (entity(Y, _, _) -> true ; format('WARNING: partOf relationship target ~w is not a defined entity!~n', [Y]))
+        )
     ).
-
-gather_direct_entity_attributes(ClassName, Attributes) :-
-    schema_entity_definition(ClassName, Attributes), !.
-gather_direct_entity_attributes(_, []). % If not defined or no direct attributes
-
-gather_direct_relationship_attributes(RelName, Attributes) :-
-    schema_relationship_definition(RelName, _Refs, Attributes), !.
-gather_direct_relationship_attributes(_, []).
-
-remove_self(_, [], []).
-remove_self(Self, [H|T1], T2) :- ( Self == H -> remove_self(Self, T1, T2) ; T2 = [H|R], remove_self(Self, T1, R) ).
-
 
 % gather_references and its helpers would be similar if needed for relationships.
 % For now, focusing on attribute gathering.
 
-% --- Your Existing Generic Helper Rules ---
-% get_attribute_value/3 (still useful for direct access in your rules)
+% --- Generic Helper Rules ---
+% get_attribute_value/3 
 get_attribute_value(EntityID, AttrName, Value) :-
     entity(EntityID, _, Attributes),
     member(attr(AttrName, Value), Attributes).
@@ -280,8 +275,8 @@ transitively_part_of(Component, Container) :-
     rel(partOf, Component, Intermediate, _),
     transitively_part_of(Intermediate, Container).
 
-% content_covers_skill and ccs_check (already tabled)
-content_covers_skill(ContainerID, SkillID) :- % ... (your existing definition)
+% content_covers_skill and ccs_check 
+content_covers_skill(ContainerID, SkillID) :- % This rule checks if a Container covers a Skill.
     entity(ContainerID, ContainerType, _),
     is_subclass(ContainerType, 'Container'),
     entity(SkillID, SkillCatType, _),
@@ -305,7 +300,7 @@ ccs_check(ContainerID, SkillID, ContainerType) :- % Rule CCS4
     \+ (SubPartID == ContainerID),
     content_covers_skill(SubPartID, SkillID).
 
-learner_mastered_container(UserID, ContainerID) :- % ... (your existing definition)
+learner_mastered_container(UserID, ContainerID) :- % This rule checks if a user has mastered a container.
     entity(UserID, 'User', _),
     entity(ContainerID, ContainerType, _), is_subclass(ContainerType, 'Container'),
     rel(ownsAccomplishment, UserID, AccID, Attributes),
@@ -473,14 +468,14 @@ rel(rated, u4, workshop_advanced_prolog, [attr(ratingValue, 5)]).
 % A user is considered a learner if they have the 'Learner' role in any event they are involved in.
 is_learner(User) :-
     entity(User, 'User', _), % Ensure User is a User entity
-    rel(involvedInEvent, User, _, Attributes),
+    rel(involvedInEvent, User, _Event, Attributes),
     member(attr(role, 'Learner'), Attributes).
 
 % Rule 2: Identify if a user is a teacher or speaker in any event.
 % A user is considered a teacher if they have the 'Teacher' or 'Speaker' role in any event.
 is_teacher(User) :-
     entity(User, 'User', _),
-    rel(involvedInEvent, User, _, Attributes),
+    rel(involvedInEvent, User, _Event, Attributes),
     ( member(attr(role, 'Teacher'), Attributes) ; member(attr(role, 'Speaker'), Attributes) ).
 
 % Rule 3: Identify if a user is a content developer.
@@ -649,7 +644,7 @@ find_expert_content_creator_for_skill(User, Skill, CreatedContent) :-
 % A user is a strong candidate for a project if:
 % 1. They are interested in the project.
 % 2. The project requires a specific skill.
-% 3. The user possesses that skill (at any level for simplicity, or you could add a threshold).
+% 3. The user possesses that skill.
 % If these conditions are met and the user isn't already marked, assert them as a strong candidate.
 
 identify_and_record_strong_candidates :-
