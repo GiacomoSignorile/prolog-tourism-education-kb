@@ -513,7 +513,6 @@ rel(makes, person1, paris_trip_alice, [attr(role, 'planner')]).
 rel(makes, person2, rome_weekend_bob, [attr(role, 'traveler')]).
 rel(makes, col2, rome_weekend_bob, []).
 rel(developed, artist_davinci, mona_lisa, [attr(role, 'painter')]).
-rel(serves, rome_fco_airport, fco_airline1, []).
 
 
 
@@ -597,7 +596,7 @@ hotel_offers_service_type(HotelID, ServiceEntityID, TargetServiceType) :-
 
 luxury_hotel_all_services(LuxuryHotelID, ListOfServiceIDs) :-
     is_luxury_hotel(LuxuryHotelID),
-    (   setof(ServiceID, _AnyServiceType^(hotel_offers_service_type(LuxuryHotelID, ServiceID, _AnyServiceType)), ListOfServiceIDs)
+    (   setof(ServiceID, AnyServiceType^(hotel_offers_service_type(LuxuryHotelID, ServiceID, AnyServiceType)), ListOfServiceIDs)
     ->  true
     ;   ListOfServiceIDs = [] 
     ).
@@ -738,7 +737,7 @@ station_serves_transport_kind(StationID, Kind) :-
 
 % 31. Calculate the average cost of museums in a city
 average_museum_cost_in_city(CityName, AverageCost) :-
-    setof(Cost, MID^CityPoi^( 
+    setof(Cost, MID^_CityPoi^( 
                 poi_in_city(MID, CityName),
                 entity(MID, 'Museum', _),
                 get_attribute_value(MID, estimatedCost, Cost),
@@ -919,7 +918,7 @@ mov(Entity1, Entity2) :-
     rel(_RelName, Entity1, Entity2, _Attrs).
 
 mov(Entity1, Entity2) :-
-    (   inverse_of(InvRelName, RelName) -> % If RelName has a defined inverse
+    (   inverse_of(InvRelName, RelName) -> 
         rel(InvRelName, Entity2, Entity1, _Attrs)
     ; 
         rel(_RelName, Entity2, Entity1, _Attrs)
