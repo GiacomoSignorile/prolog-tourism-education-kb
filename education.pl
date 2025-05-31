@@ -8,9 +8,9 @@
 :- discontiguous rel/4.
 
 % --- DYNAMIC PREDICATE DECLARATION
-:- dynamic strong_project_candidate/3. % strong_project_candidate(User, Project, Skill)
+:- dynamic strong_project_candidate/3. 
 
-% --- PERFORMANCE ENHANCEMENT: Indexing for rel/4 and entity/3 ---
+% --- Indexing for rel/4 and entity/3 ---
 :- index(rel(1,1,1,0)).
 :- index(entity(1,1,0)).
 
@@ -24,14 +24,10 @@
 :- discontiguous project_info/2.
 
 % Schema Predicates (Entity Attribute Schemas & Relationship Schemas)
-% These are defined by facts like 'User'([...]), 'partOf'([...],[...]).
-% We need to ensure Prolog knows they can be defined piece-meal if they are spread out,
-% or ensure they are grouped. For simplicity, we'll assume they are grouped in the schema section.
-% If they were spread, we'd need :- discontiguous 'User'/1, 'partOf'/2, etc.
 
-:- discontiguous is_subclass_normal/2. % From your existing code
-:- discontiguous is_subclass_inverse/2. % New from tourism example
-:- table content_covers_skill/2.      % From your existing code
+:- discontiguous is_subclass_normal/2. 
+:- discontiguous is_subclass_inverse/2.
+:- table content_covers_skill/2. 
 
 % --- SCHEMA DEFINITIONS ---
 
@@ -43,7 +39,6 @@ subclass_of('Category', 'DomainEntity').
 subclass_of('Event', 'DomainEntity').
 subclass_of('Accomplishment', 'DomainEntity').
 subclass_of('Project', 'DomainEntity').
-% Implicit: 'DomainEntity' is the root. If you had subclass_of('DomainEntity', 'Entity'), 'Entity' would be root.
 
 % Subclasses of Container
 subclass_of('Course', 'Container').
@@ -58,8 +53,6 @@ subclass_of('Topic', 'Category').
 
 % -- Entity Attribute Schemas ('EntityName'([attributeList])) --
 % These define the *direct* attributes of each entity type.
-% 'name' is often handled by xxx_info/2 and also as attr(name,...) in entity/3.
-% We list other characteristic attributes here.
 'DomainEntity'([]). % Root entity, might have no direct attributes itself.
 'User'([name]). % name is primary, other attributes could be role, status etc.
 'Container'([name, language, difficulty]).
@@ -126,7 +119,7 @@ is_subclass(Subclass, Superclass) :-
 % is_subclass_inverse part from tourism example can be complex if not all relationships are classes.
 % For now, keeping the simpler is_subclass structure that worked. If needed, can add is_subclass_inverse.
 
-is_subclass_normal(Class, Class) :- schema_entity_definition(Class, _), !. % Reflexivity for normal path
+is_subclass_normal(Class, Class) :- schema_entity_definition(Class, _), !. 
 is_subclass_normal(Subclass, Superclass) :-
   subclass_of(Subclass, Superclass).
 is_subclass_normal(Subclass, Superclass) :-
@@ -153,15 +146,14 @@ defined_entity_schema('Topic', Attributes) :- 'Topic'(Attributes).
 defined_entity_schema('Event', Attributes) :- 'Event'(Attributes).
 defined_entity_schema('Accomplishment', Attributes) :- 'Accomplishment'(Attributes).
 defined_entity_schema('Project', Attributes) :- 'Project'(Attributes).
-defined_entity_schema('DomainEntity', Attributes) :- 'DomainEntity'(Attributes). % Make sure to include all of them
+defined_entity_schema('DomainEntity', Attributes) :- 'DomainEntity'(Attributes). 
 
-% If schema_relationship_definition/3 also causes issues, do the same:
+% schema_relationship_definition(RelName, SubjObjList, AttrList)
 schema_relationship_definition(RelName, SubjObjList, AttrList) :-
-    atom(RelName), % Good check
+    atom(RelName),
     defined_relationship_schema(RelName, SubjObjList, AttrList).
 
 % The dispatcher predicate for relationship schemas
-% WARNING: Readability of Dispatchers, For very large schemas, dispatchers can become long.
 defined_relationship_schema('partOf', DomainRangePairs, Attributes) :-
     'partOf'(DomainRangePairs, Attributes).
 defined_relationship_schema('hasPart', DomainRangePairs, Attributes) :-
@@ -194,7 +186,7 @@ defined_relationship_schema('ownsAccomplishment', DomainRangePairs, Attributes) 
     'ownsAccomplishment'(DomainRangePairs, Attributes).
 defined_relationship_schema('accomplishmentOwnedBy', DomainRangePairs, Attributes) :-
     'accomplishmentOwnedBy'(DomainRangePairs, Attributes).
-defined_relationship_schema('awardedFor', DomainRangePairs, Attributes) :- % Continuing from here
+defined_relationship_schema('awardedFor', DomainRangePairs, Attributes) :- 
     'awardedFor'(DomainRangePairs, Attributes).
 defined_relationship_schema('awardsAccomplishment', DomainRangePairs, Attributes) :-
     'awardsAccomplishment'(DomainRangePairs, Attributes).
@@ -259,7 +251,6 @@ validate_partof_entities :-
     ).
 
 % gather_references and its helpers would be similar if needed for relationships.
-% For now, focusing on attribute gathering.
 
 % --- Generic Helper Rules ---
 % get_attribute_value/3 
@@ -570,7 +561,7 @@ is_instructor_for_container(Instructor, Container) :-
 
 % Rule 13: Get all recursive parts of a container (e.g., modules in a course, lessons in a module).
 % This uses the `transitively_part_of` but collects all such parts for a given top container.
-% Note: `transitively_part_of(Component, Container)` means Component is part of Container. We want parts OF the Container.
+% Note: `transitively_part_of(Component, Container)` means Component is part of Container.
 % So we need to find X such that transitively_part_of(X, TopContainer).
 get_recursive_container_parts(TopContainer, PartList) :-
     entity(TopContainer, TopCType, _), is_subclass(TopCType, 'Container'),
@@ -730,12 +721,7 @@ suggest_direct_next_step_for_skill(User, TargetSkill, SuggestedContainer) :-
         ),
         learner_mastered_container(User, Prereq)          % Then User must have mastered Prereq
     ),
-    % Optional: Add a condition that the user doesn't already possess the skill at a high level
-    % For example: \+ (user_has_skill_level(User, TargetSkill, Level), Level >= 7),
-    
-    % Optional: If multiple such containers exist, one might want to add ordering
-    % (e.g., prefer 'beginner' over 'intermediate' if both satisfy conditions).
-    % This rule just finds *any* such container.
+
     true. % Placeholder if no further conditions.
 
 
